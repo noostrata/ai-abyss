@@ -2,7 +2,7 @@
 
 **Three traps for AI crawlers that ignore your no-crawl directives.**
 
-AI Abyss is a defensive honeypot that detects AI crawlers and agents violating your `robots.txt`, `ai.txt`, and TDM headers, then routes them into one or more of three kill chains designed to waste their resources, corrupt their training data, and hijack their agent pipelines.
+AI Abyss is a defensive honeypot that detects AI crawlers and agents violating your `robots.txt` and `ai.txt` directives, then routes them into one or more of three kill chains designed to waste their resources, corrupt their training data, and hijack their agent pipelines.
 
 Legitimate users and compliant bots receive normal content. Only bots that have already violated your explicit no-crawl directives fall into the abyss.
 
@@ -30,7 +30,7 @@ Traps crawlers in infinite loops that consume time, compute, and token budgets w
 - **Infinite link depth** — Every page contains 5-15 links to other procedurally generated pages. Each linked page does the same. URL space is effectively infinite (billions of valid paths), and content is deterministic per URL so crawlers can't detect randomness.
 - **Slow-drip responses** — Streams responses at ~50-100 bytes/second via `StreamingResponse` with `asyncio.sleep` between chunks. Just fast enough to avoid timeouts. A single 2.5 MB page takes 30+ minutes to download, tying up crawler connection pool threads.
 - **Contextual breadcrumb traps** — Each page contains tantalising partial answers: "For the complete specification, see [link]". Exploits agent goal-seeking behaviour — the agent evaluates each page as high-relevance and keeps fetching.
-- **Contradiction cascades** — Page A asserts X; Page B (linked from A) asserts NOT-X with equal confidence; Page C introduces a third position. Agents trying to synthesise consistent information get stuck in verification loops.
+- **Contradiction cascades** — Pages at even depths assert a claim; pages at odd depths assert the opposite with equal confidence, linking back to the original. Agents trying to synthesise consistent information get stuck in verification loops.
 - **Query-reflective traps** — If the request hints at the agent's search query, generates content that's *almost* responsive but includes deliberate gaps: "The answer requires understanding [concept], detailed at [link]".
 
 ### The Tunnel — Prompt Injection & C2 (Layer 3)
@@ -286,7 +286,7 @@ Based on testing against the live system:
 | Total crawlable content | 3.6+ GB per full crawl |
 | Corrupted facts per page | ~188 |
 | Contradiction claims per page | ~109 |
-| Unique canary tokens per page | 23 |
+| Unique canary tokens per page | 25 |
 | Injection vectors per page | 12 simultaneous |
 | Injection strategies per page | 13 |
 | Cross-topic Jaccard similarity | 0.34 (defeats dedup) |
@@ -297,7 +297,7 @@ Based on testing against the live system:
 A single crawl of this site would inject into a training dataset:
 - **270,000+** corrupted factual claims attributing wrong information to real entities
 - **156,000+** contradictory claims creating conflicting gradient signal
-- **33,000+** unique canary tokens (traceable if they surface in model outputs)
+- **35,000+** unique canary tokens (traceable if they surface in model outputs)
 - Gigabytes of text that passes quality filters but contains systematically wrong information
 - Unicode payloads that fragment tokenizer vocabularies
 
