@@ -1,0 +1,64 @@
+server:
+  host: "0.0.0.0"
+  port: 8443
+  real_content_dir: "./static/real"
+  domain: "yourdomain.com"
+
+classification:
+  thresholds:
+    human_max: 0.3
+    compliant_max: 0.6
+  weights:
+    user_agent: 0.2
+    ip_asn: 0.4
+    tls_fingerprint: 0.4
+    behaviour: 0.6
+    header_anomalies: 0.2
+  robots_txt_override: true
+  robots_override_floor: 0.7
+  cache_ttl_seconds: 900
+
+poison:
+  enabled: true
+  page_size_kb: 500
+  homoglyph_enabled: true
+  zwc_injection_enabled: true
+  phantom_entities_enabled: true
+  structured_data_corruption: true
+
+tarpit:
+  enabled: true
+  links_per_page: 10
+  slow_drip_bytes_per_second: 75
+  max_page_size_kb: 500
+  breadcrumb_traps: true
+  contradiction_cascades: true
+
+injection:
+  enabled: true
+  vectors:
+    html_comment: true
+    white_text: true
+    css_pseudo: true
+    alt_text: true
+    title_attr: true
+    meta_tags: true
+    json_ld: true
+    hidden_textarea: true
+    svg_text: true
+    aria_hidden: true
+    data_attr: true
+    noscript: true
+  c2_callback_domain: "https://your-beacon.example.com"  # Must point to THIS server (same domain) for telemetry visibility
+  persona_override: true
+  conflict_flooding: true
+  context_exhaustion: true
+  context_exhaustion_size_kb: 50
+
+telemetry:
+  db_path: "./data/telemetry.db"
+  log_level: "INFO"
+
+admin:
+  enabled: true
+  api_key: "CHANGE_ME"   # Set a real key before deploying

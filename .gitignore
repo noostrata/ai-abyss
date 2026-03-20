@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE / tooling
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project data (generated at runtime)
+data/telemetry*
+
+# Internal spec (not shipped)
+CLAUDE.md
+
+# Environment / secrets
+.env
+.env.*
+config.local.yaml
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# MaxMind database (optional, not bundled)
+data/*.mmdb

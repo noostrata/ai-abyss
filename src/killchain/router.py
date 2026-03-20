@@ -1,0 +1,68 @@
+"""Kill chain selection and composition logic.
+
+Routes hostile bot requests through the PageComposer (v2, distributed injection)
+or falls back to the legacy compose path.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from src.classifier.signals import ClassificationResult
+from src.killchain.composer import ComposedPage, PageComposer
+from src.killchain.inject import InjectionResult
+from src.utils.config import AppConfig
+
+
+@dataclass
+class KillChainResult:
+    """Combined output from all activated kill chain layers."""
+
+    layers_activated: list[str] = field(default_factory=list)
+    injection: InjectionResult | None = None
+    composed: ComposedPage | None = None
+    final_html: str = ""
+    use_slow_drip: bool = False
+    canary_tokens: list[str] = field(default_factory=list)
+
+    @property
+    def layer_string(self) -> str:
+        return ",".join(self.layers_activated)
+
+
+class KillChainRouter:
+    """Decide which kill chain layers to activate and compose their output."""
+
+    def __init__(self, config: AppConfig) -> None:
+        self.config = config
+        self._composer = PageComposer(config)
+
+    def route(
+        self,
+        path: str,
+        session_id: str,
+        classification: ClassificationResult,
+        session_fingerprint: str = "",
+        query_string: str = "",
+        referrer: str = "",
+    ) -> KillChainResult:
+        """Route a hostile request through the kill chain.
+
+        Uses the PageComposer to produce a page with distributed injection
+        and interleaved poisoned content.
+        """
+        composed = self._composer.compose(
+            path, session_id,
+            query_string=query_string,
+            referrer=referrer,
+        )
+
+        result = KillChainResult(
+            layers_activated=composed.layers_activated,
+            composed=composed,
+            final_html=composed.html,
+            use_slow_drip=self.config.tarpit.enabled,
+            canary_tokens=composed.canary_tokens,
+        )
+
+        return result
