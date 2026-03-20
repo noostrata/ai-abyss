@@ -67,7 +67,7 @@ Legitimate users and compliant bots get normal content. Only bots that have alre
                                       └──────────────┘
 ```
 
-Every request hits the classification engine first. Humans pass through. Compliant bots pass through with logging. Hostile bots — those that ignored your `robots.txt` — get routed into one or more kill chains, and everything is logged.
+Every request hits the classification engine first. Humans pass through. Compliant bots pass through with logging. Hostile bots — those that ignored your `robots.txt` and/or behave erratically — get routed into one or more kill chains, and everything is logged.
 
 ---
 
