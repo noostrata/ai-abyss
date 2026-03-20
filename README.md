@@ -18,25 +18,23 @@ Legitimate users and compliant bots get normal content. Only bots that have alre
 
 ## 📑 Table of Contents
 
-[How It Works](#how-it-works)
+- [How It Works](#how-it-works)
 - [The Poison Well — L1](#-the-poison-well--data-corruption-l1)
 - [The Tarpit — L2](#-the-tarpit--resource-exhaustion-l2)
 - [The Tunnel — L3](#-the-tunnel--prompt-injection--c2-l3)
 - [Classification Engine](#classification-engine-layer-0)
 - [Telemetry & Dashboard](#telemetry--dashboard)
 
-[Quickstart](#quickstart)
+- [Quickstart](#quickstart)
 - [Testing](#testing)
 - [Configuration](#configuration)
 - [Deployment](#deployment)
 
-Details
 - [Architecture](#architecture)
 - [Metrics](#metrics)
 - [Legal & Ethical Position](#legal--ethical-position)
 - [Production Caveats](#production-caveats)
 
-Docs
 - [Dependencies](#dependencies)
 - [Standards & Specifications](#standards-and-specifications)
 - [References](#references)
@@ -489,7 +487,7 @@ Free to use, modify, and distribute (including commercially), provided that:
 
 ### AI-Generated Code Disclaimer
 
-For extra irony, a substantial portion of this codebase was written using [Claude Code](https://claude.ai/claude-code). Yes — an AI helped build a system designed to trap AIs.
+For extra irony and chaos, a substantial portion of this codebase was written using [Claude Code](https://claude.ai/claude-code). Yes — an AI helped build a system designed to trap AIs.
 
 Because the code was generated with LLM assistance, some patterns may resemble existing open-source works without intentional copying. All dependencies and data sources have been audited for license compatibility (see [Dependencies](#dependencies)), but I cannot fully guarantee no AI-generated fragment inadvertently reproduces copyrighted material.
 
