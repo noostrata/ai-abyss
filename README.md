@@ -160,7 +160,7 @@ The robots.txt tripwire is the strongest signal: bots that crawl without fetchin
 
 ## Telemetry & Dashboard
 
-**`/admin/stats`**
+**`/admin`**
 
 <img width="1188" height="556" alt="dash" src="https://github.com/user-attachments/assets/619ffdcc-b60b-414b-9283-5be7c506cffa" />
 
