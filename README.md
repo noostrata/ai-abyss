@@ -19,7 +19,7 @@ AI Abyss is a defensive honeypot. It detects bots that violate your `robots.txt`
 
 Legitimate users and compliant bots get normal content. Only bots that have already violated explicit no-crawl directives fall in.
 
-All three layers are active by default - any can be disabled at any time.
+All three layers are active by default — any can be disabled at any time.
 
 ---
 
