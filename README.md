@@ -5,7 +5,7 @@ _Three traps for AI crawlers that ignore your no-crawl directives._
 ![License: AGPL-3.0](https://img.shields.io/github/license/terrorswift/ai-abyss)
 ![Tests: 169 passing](https://img.shields.io/badge/tests-169%20passing-brightgreen)
 ![Status: Proof of Concept](https://img.shields.io/badge/status-proof%20of%20concept-orange)
-![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional%20(JA3%2FJA4)-lightgrey)
+![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional-lightgrey)
 
 > ⚠️ **This is a research prototype.** It is provided as-is for educational and defensive research purposes. It is not production-hardened and will not be actively maintained. See [Production Caveats](#production-caveats) before deploying anywhere real. Laws vary by jurisdiction — consult legal counsel, especially regarding data collection (GDPR, CCPA) and computer fraud statutes.
 
