@@ -12,13 +12,3 @@ def make_canary(page_path: str, vector: str, session_id: str) -> str:
 
 def make_secondary_canary() -> str:
     return f"PW-{generate_random_token(8)}"
-
-
-def decode_canary(token: str) -> dict[str, str]:
-    # Canaries are HMAC-based — we can only verify, not decode.
-    # Actual lookup happens in the telemetry DB by canary_token.
-    return {
-        "token": token,
-        "length": str(len(token)),
-        "is_secondary": token.startswith("PW-"),
-    }

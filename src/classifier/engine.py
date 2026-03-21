@@ -78,7 +78,7 @@ class ClassificationEngine:
         ua_signal = next((s for s in signals if s.name == "user_agent"), None)
         known_crawler = ua_signal is not None and ua_signal.score >= 0.85
 
-        # Bot fetched robots.txt (which says Disallow: /) and is now crawling other pages
+        # Bot identified as crawler (fetched robots.txt) and is still making requests
         robots_violated = (
             self.config.robots_txt_override
             and session.robots_fetched

@@ -4,7 +4,7 @@
 
 import pytest
 
-from src.c2.canary import decode_canary, make_canary, make_secondary_canary
+from src.c2.canary import make_canary, make_secondary_canary
 from src.utils.crypto import set_deployment_secret
 
 set_deployment_secret("test-secret-for-testing")
@@ -31,15 +31,6 @@ class TestCanaryTokens:
         c2 = make_secondary_canary()
         assert c1 != c2
         assert c1.startswith("PW-")
-
-    def test_decode_canary(self):
-        info = decode_canary("abc123")
-        assert info["token"] == "abc123"
-        assert info["is_secondary"] is False
-
-    def test_decode_secondary_canary(self):
-        info = decode_canary("PW-abc123")
-        assert info["is_secondary"] is True
 
 
 @pytest.mark.asyncio

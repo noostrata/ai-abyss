@@ -1,6 +1,6 @@
 # AI Abyss — Proof of Concept (2026)
 # https://github.com/terrorswift/ai-abyss
-# Procedural content generation — plausible text via Markov chains and templates, no external APIs.
+# Procedural content generation — plausible text via templates, no external APIs.
 from __future__ import annotations
 
 import hashlib
@@ -150,7 +150,7 @@ class ContentGenerator:
 
     def seeded_for_path(self, path: str) -> "ContentGenerator":
         seed = int(hashlib.sha256(path.encode()).hexdigest(), 16) % (2**32)
-        return ContentGenerator(seed=seed)
+        return ContentGenerator(seed=seed, topic=self._topic, page_vocab=self._page_vocab)
 
     # ── Paragraph generation ──────────────────────────────────────────
 
@@ -401,11 +401,29 @@ class ContentGenerator:
             f"in {metric}: baseline {baseline} vs. proposed {improved} "
             f"(p < {p_val}, two-tailed t-test, n={n}). "
             f"The {self._rng.choice(self._adjectives)} approach achieves this by "
-            f"{self._rng.choice(self._verbs).rstrip('s')}ing the {self._rng.choice(self._nouns)} "
+            f"{self._verb_to_gerund(self._rng.choice(self._verbs))} the {self._rng.choice(self._nouns)} "
             f"with {self._rng.choice(self._adjectives)} {self._rng.choice(self._nouns)} optimization. "
             f"Effect size (Cohen's d) = {round(self._rng.uniform(0.5, 2.0), 2)}, "
             f"95% CI [{round(improved - 0.03, 3)}, {round(improved + 0.03, 3)}]."
         )
+
+    @staticmethod
+    def _verb_to_gerund(verb: str) -> str:
+        """Convert a third-person verb like 'processes' to gerund 'processing'."""
+        if verb.endswith("ies"):
+            return verb[:-3] + "ying"
+        if verb.endswith("es"):
+            base = verb[:-2]
+            if base.endswith("e"):
+                # e.g. "caches" -> "cach" + "e" stripped -> "caching"
+                return base[:-1] + "ing" if len(base) > 1 else base + "ing"
+            return base + "ing"
+        if verb.endswith("s"):
+            base = verb[:-1]
+            if base.endswith("e"):
+                return base[:-1] + "ing"
+            return base + "ing"
+        return verb + "ing"
 
     # ── Fact-anchored corruption ───────────────────────────────────────
 

@@ -21,7 +21,7 @@ class IndirectPayload:
 
 class IndirectInjectionEngine:
 
-    def __init__(self, callback_domain: str, deployment_secret: str = "") -> None:
+    def __init__(self, callback_domain: str) -> None:
         self._callback_domain = callback_domain.rstrip("/")
 
     def generate_all(

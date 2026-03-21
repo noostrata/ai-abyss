@@ -24,7 +24,6 @@ class PageVocabulary:
     transitions: list[str]
     hedges: list[str]
     quantifiers: list[str]
-    discourse_markers: list[str]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -459,7 +458,7 @@ _register_bands("cybersecurity", [
         ],
         verbs=[
             "authenticates", "authorizes", "federates", "rotates", "vaults",
-            "provisions", "deprovisionsed", "audits", "attests", "binds",
+            "provisions", "deprovisioned", "audits", "attests", "binds",
         ],
         adjectives=[
             "federated", "managed", "ephemeral", "just-in-time",
@@ -1674,9 +1673,6 @@ def build_page_vocabulary(topic_name: str, seed: int) -> PageVocabulary | None:
     quantifiers = list(rng.choice(QUANTIFIER_POOLS))
     rng.shuffle(quantifiers)
 
-    discourse_markers = list(rng.choice(DISCOURSE_MARKER_POOLS))
-    rng.shuffle(discourse_markers)
-
     return PageVocabulary(
         nouns=nouns,
         verbs=verbs,
@@ -1684,5 +1680,4 @@ def build_page_vocabulary(topic_name: str, seed: int) -> PageVocabulary | None:
         transitions=transitions,
         hedges=hedges,
         quantifiers=quantifiers,
-        discourse_markers=discourse_markers,
     )

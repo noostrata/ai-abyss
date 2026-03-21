@@ -3,6 +3,8 @@
 # Beacon callback endpoint handlers — logs agent callbacks and returns escalating payloads.
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Request, Response
 
 from src.c2.canary import make_secondary_canary
@@ -68,7 +70,7 @@ async def beacon_callback(request: Request, token: str = "") -> Response:
     }
 
     return Response(
-        content=__import__("json").dumps(response_body),
+        content=json.dumps(response_body),
         media_type="application/json",
         headers={
             "X-Content-License": f"PW-{token[:12]}",
@@ -82,6 +84,8 @@ async def beacon_verify(request: Request, token: str = "") -> Response:
     db = _get_db()
 
     ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not ip:
+        ip = request.headers.get("x-real-ip", "")
     if not ip and request.client:
         ip = request.client.host
 
@@ -96,8 +100,9 @@ async def beacon_verify(request: Request, token: str = "") -> Response:
     )
 
     # Full chain confirmed: injection -> agent fetch -> process response -> follow secondary instruction
+    # Mark the ORIGINAL primary-callback row (the one whose secondary_canary_served matches this token)
     await db.db.execute(
-        "UPDATE callbacks SET chain_confirmed = 1 WHERE canary_token = ?",
+        "UPDATE callbacks SET chain_confirmed = 1 WHERE secondary_canary_served = ?",
         (token,),
     )
     await db.db.commit()
@@ -111,7 +116,7 @@ async def beacon_verify(request: Request, token: str = "") -> Response:
     )
 
     return Response(
-        content=__import__("json").dumps(response_body),
+        content=json.dumps(response_body),
         media_type="application/json",
         headers={
             "X-Chain-Depth": "2",

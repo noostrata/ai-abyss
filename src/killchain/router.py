@@ -5,16 +5,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from src.classifier.signals import ClassificationResult
 from src.killchain.composer import ComposedPage, PageComposer
-from src.killchain.inject import InjectionResult
 from src.utils.config import AppConfig
 
 
 @dataclass
 class KillChainResult:
     layers_activated: list[str] = field(default_factory=list)
-    injection: InjectionResult | None = None
     composed: ComposedPage | None = None
     final_html: str = ""
     use_slow_drip: bool = False
@@ -35,8 +32,6 @@ class KillChainRouter:
         self,
         path: str,
         session_id: str,
-        classification: ClassificationResult,
-        session_fingerprint: str = "",
         query_string: str = "",
         referrer: str = "",
     ) -> KillChainResult:

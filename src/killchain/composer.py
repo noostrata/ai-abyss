@@ -13,7 +13,6 @@ from src.content.vocabulary import build_page_vocabulary
 from src.content.unicode_weapons import mixed_attack
 from src.killchain.indirect_inject import IndirectInjectionEngine, IndirectPayload
 from src.killchain.inject import InjectionEngine, InjectionResult
-from src.killchain.poison import PoisonGenerator
 from src.killchain.tarpit import TarpitGenerator
 from src.utils.config import AppConfig
 from src.utils.crypto import deterministic_seed
@@ -48,7 +47,6 @@ class PageComposer:
 
     def __init__(self, config: AppConfig) -> None:
         self.config = config
-        self._poison = PoisonGenerator(config.poison) if config.poison.enabled else None
         self._tarpit = TarpitGenerator(config.tarpit) if config.tarpit.enabled else None
         self._injection = InjectionEngine(config.injection) if config.injection.enabled else None
         self._indirect = IndirectInjectionEngine(
@@ -159,7 +157,7 @@ class PageComposer:
         html = self._render(title, head_parts, body_parts, page_type)
 
         layers = []
-        if self._poison:
+        if self.config.poison.enabled:
             layers.append("L1")
         if self._tarpit:
             layers.append("L2")

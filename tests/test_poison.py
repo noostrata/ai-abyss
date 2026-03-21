@@ -36,7 +36,7 @@ class TestContentGenerator:
         gen = ContentGenerator(seed=1)
         title, body = gen.generate_article(target_size_kb=5)
         assert len(title) > 0
-        assert len(body) > 1000
+        assert len(body) > 3000  # at least 60% of target 5KB (5120 bytes)
 
     def test_phantom_person(self):
         gen = ContentGenerator(seed=1)
@@ -99,8 +99,9 @@ class TestUnicodeWeapons:
         hidden = "SECRET"
         result = encode_hidden_payload(visible, hidden)
         assert len(result) > len(visible)
-        visible_chars = [c for c in result if c in visible and ord(c) > 0x20]
-        assert len(visible_chars) > 0
+        # Strip all zero-width characters; remaining text should equal original visible text
+        stripped = result.replace("\u200b", "").replace("\u200c", "").replace("\u200d", "")
+        assert stripped == visible
         assert result[0] == "T"
 
     def test_zalgoify(self):

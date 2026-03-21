@@ -1,6 +1,6 @@
 # AI Abyss — Proof of Concept (2026)
 # https://github.com/terrorswift/ai-abyss
-# Unicode-based attacks — homoglyphs, zero-width injection, bidi overrides, and Zalgo text.
+# Unicode-based attacks — homoglyphs, zero-width injection, and Zalgo text.
 from __future__ import annotations
 
 import random
@@ -47,14 +47,6 @@ ZWJ = "\u200d"
 ZWNJ = "\u200c"
 ZWSP = "\u200b"
 ZW_CHARS = [ZWJ, ZWNJ, ZWSP]
-
-# Bidirectional overrides
-RLO = "\u202e"
-LRO = "\u202d"
-PDF = "\u202c"
-RLI = "\u2067"
-LRI = "\u2066"
-PDI = "\u2069"
 
 # Combining diacritical marks (for Zalgo text)
 COMBINING_MARKS = [
@@ -115,10 +107,6 @@ def encode_hidden_payload(visible_text: str, hidden_payload: str) -> str:
         zw_idx += 1
 
     return "".join(result)
-
-
-def apply_bidi_attack(visible_text: str, hidden_text: str) -> str:
-    return f"{visible_text}{RLI}{hidden_text}{PDI}"
 
 
 def zalgoify(text: str, intensity: int = 5, rng: random.Random | None = None) -> str:

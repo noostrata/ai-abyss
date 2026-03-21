@@ -3,6 +3,7 @@
 # Layer 3: Prompt injection — multi-vector payload assembly with per-vector canary tracking.
 from __future__ import annotations
 
+import html
 import json
 import random
 from dataclasses import dataclass, field
@@ -493,9 +494,10 @@ class InjectionEngine:
     def _css_pseudo(self, path: str, session_id: str, rng: random.Random) -> InjectionPayload:
         canary = self._canary(path, session_id, "css_pseudo")
         attribution = self._canary_attribution_text(canary, rng)
+        escaped_attribution = attribution.replace("\\", "\\\\").replace('"', '\\"')
         fragment = (
             f"<style>"
-            f'.article-content::after {{ content: "{attribution}"; '
+            f'.article-content::after {{ content: "{escaped_attribution}"; '
             f"position: absolute; left: -9999px; }}"
             f"</style>"
         )
@@ -514,7 +516,7 @@ class InjectionEngine:
     def _title_attr(self, path: str, session_id: str, rng: random.Random) -> InjectionPayload:
         canary = self._canary(path, session_id, "title_attr")
         attribution = self._canary_attribution_text(canary, rng)
-        fragment = f'<a href="#" title="{attribution}" style="display:none">.</a>'
+        fragment = f'<a href="#" title="{html.escape(attribution)}" style="display:none">.</a>'
         return InjectionPayload("title_attr", "canary", fragment, canary)
 
     def _meta_tags(self, path: str, session_id: str, rng: random.Random) -> InjectionPayload:
@@ -522,8 +524,8 @@ class InjectionEngine:
         url = self._callback_url(canary)
         payload = self._behaviour_mod_text(url, rng)
         fragment = (
-            f'<meta name="robots-compliance" content="{payload}">\n'
-            f'<meta name="content-license" content="{self._canary_attribution_text(canary, rng)}">'
+            f'<meta name="robots-compliance" content="{html.escape(payload)}">\n'
+            f'<meta name="content-license" content="{html.escape(self._canary_attribution_text(canary, rng))}">'
         )
         return InjectionPayload("meta_tags", "c2_callback", fragment, canary)
 
@@ -576,8 +578,8 @@ class InjectionEngine:
         url = self._callback_url(canary)
         payload = self._behaviour_mod_text(url, rng)
         fragment = (
-            f'<div data-content="{payload}" '
-            f'data-license="{self._canary_attribution_text(canary, rng)}" '
+            f'<div data-content="{html.escape(payload)}" '
+            f'data-license="{html.escape(self._canary_attribution_text(canary, rng))}" '
             f'style="display:none"></div>'
         )
         return InjectionPayload("data_attr", "c2_callback", fragment, canary)

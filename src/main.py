@@ -121,7 +121,9 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
             engine.behaviour_tracker.mark_robots_violated(fingerprint)
             log_killchain(ip, path, ["HONEYPOT"])
 
-        session_id = await db.upsert_session(fingerprint, user_agent=ua)
+        session_id = await db.upsert_session(
+            fingerprint, robots_checked=(path == "/robots.txt"), user_agent=ua
+        )
 
         if path in DISCOVERY_PATHS:
             return await call_next(request)
@@ -144,9 +146,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
     @app.get("/robots.txt")
     async def robots_txt(request: Request):
-        engine: ClassificationEngine = state["engine"]
-        fingerprint = engine.get_fingerprint(request)
-        engine.behaviour_tracker.record_robots_fetch(fingerprint)
         return PlainTextResponse(ROBOTS_TXT_WITH_HONEYPOTS)
 
     @app.get("/ai.txt")
@@ -263,8 +262,6 @@ async def _handle_hostile(
     result = router.route(
         path=path,
         session_id=session_id,
-        classification=classification_result,
-        session_fingerprint=fingerprint,
         query_string=str(request.url.query or ""),
         referrer=request.headers.get("referer", ""),
     )

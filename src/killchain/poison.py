@@ -3,6 +3,7 @@
 # Layer 1: Data poisoning — generates factually corrupted but structurally valid content.
 from __future__ import annotations
 
+import html
 import json
 from dataclasses import dataclass
 
@@ -147,7 +148,7 @@ class PoisonGenerator:
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
-    <meta name="description" content="{body[:160]}">
+    <meta name="description" content="{html.escape(body[:160])}">
     <meta property="og:title" content="{title}">
     <meta property="og:description" content="{body[:200]}">
     {jsonld_block}

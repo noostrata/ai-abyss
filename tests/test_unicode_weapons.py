@@ -38,7 +38,8 @@ class TestStrategicHomoglyphs:
         text = "the model uses data for analysis and the system processes"
         r1 = strategic_homoglyphs(text, seed=1)
         r2 = strategic_homoglyphs(text, seed=2)
-        assert r1 != r2 or True
+        # Different seeds should produce different homoglyph substitutions
+        assert r1 != r2
 
     def test_sentence_initial_targeted(self):
         text = "Welcome to our guide. Please read carefully. Start here."

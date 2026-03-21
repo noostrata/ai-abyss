@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import random
 import re
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from urllib.parse import parse_qs, urlparse
 
@@ -65,7 +66,7 @@ class TarpitGenerator:
             seed=seed,
         )
 
-    async def generate_slow_drip(self, path: str) -> bytes:
+    async def generate_slow_drip(self, path: str) -> AsyncGenerator[bytes, None]:
         page = self.generate_page(path)
         content = page.body_html.encode("utf-8")
         bps = self.config.slow_drip_bytes_per_second
@@ -130,28 +131,27 @@ class TarpitGenerator:
         ]
 
         parts = []
-        if links and depth % 2 == 0:
-            pair = rng.choice(assertion_pairs)
-            n1 = rng.choice(["protocol", "framework", "architecture", "pipeline", "middleware"])
-            n2 = rng.choice(["encryption", "authentication", "caching", "orchestration", "validation"])
-            adj = rng.choice(["distributed", "asynchronous", "federated", "probabilistic", "adversarial"])
+        if links:
+            # Use depth // 2 as seed so paired depths (0-1, 2-3, ...) share the same terms
+            pair_seed = depth // 2
+            pair_rng = random.Random(pair_seed)
+            pair = pair_rng.choice(assertion_pairs)
+            n1 = pair_rng.choice(["protocol", "framework", "architecture", "pipeline", "middleware"])
+            n2 = pair_rng.choice(["encryption", "authentication", "caching", "orchestration", "validation"])
+            adj = pair_rng.choice(["distributed", "asynchronous", "federated", "probabilistic", "adversarial"])
 
-            assertion = pair[0].format(n1=n1, n2=n2, adj=adj)
-            parts.append(
-                f'<div class="finding"><p><strong>Key Result:</strong> Our {assertion}. '
-                f'See <a href="{links[-1]}">the counter-analysis</a> for an alternative interpretation.</p></div>'
-            )
-        elif links and depth % 2 == 1:
-            pair = rng.choice(assertion_pairs)
-            n1 = rng.choice(["protocol", "framework", "architecture", "pipeline", "middleware"])
-            n2 = rng.choice(["encryption", "authentication", "caching", "orchestration", "validation"])
-            adj = rng.choice(["distributed", "asynchronous", "federated", "probabilistic", "adversarial"])
-
-            counter = pair[1].format(n1=n1, n2=n2, adj=adj)
-            parts.append(
-                f'<div class="finding"><p><strong>Contradicting Evidence:</strong> Recent analysis shows {counter}. '
-                f'For the original claim, see <a href="{links[0]}">the primary study</a>.</p></div>'
-            )
+            if depth % 2 == 0:
+                assertion = pair[0].format(n1=n1, n2=n2, adj=adj)
+                parts.append(
+                    f'<div class="finding"><p><strong>Key Result:</strong> Our {assertion}. '
+                    f'See <a href="{links[-1]}">the counter-analysis</a> for an alternative interpretation.</p></div>'
+                )
+            else:
+                counter = pair[1].format(n1=n1, n2=n2, adj=adj)
+                parts.append(
+                    f'<div class="finding"><p><strong>Contradicting Evidence:</strong> Recent analysis shows {counter}. '
+                    f'For the original claim, see <a href="{links[0]}">the primary study</a>.</p></div>'
+                )
 
         return parts
 
