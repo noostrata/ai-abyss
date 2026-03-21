@@ -1,4 +1,5 @@
 # AI Abyss
+_Three traps for AI crawlers that ignore your no-crawl directives._
 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: AGPL-3.0](https://img.shields.io/github/license/terrorswift/ai-abyss)
@@ -7,8 +8,6 @@
 ![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional%20(JA3%2FJA4)-lightgrey)
 
 > ⚠️ **This is a research prototype.** It is provided as-is for educational and defensive research purposes. It is not production-hardened and will not be actively maintained. See [Production Caveats](#production-caveats) before deploying anywhere real. Laws vary by jurisdiction — consult legal counsel, especially regarding data collection (GDPR, CCPA) and computer fraud statutes.
-
-Three traps for AI crawlers that ignore your no-crawl directives.
 
 AI Abyss is a defensive honeypot. It detects bots that violate your `robots.txt` and `ai.txt`, then routes them into three kill chains — each targeting a different pillar of the CIA triad:
 
