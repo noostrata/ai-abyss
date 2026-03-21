@@ -1,4 +1,6 @@
-"""SQLite schema management and query helpers for telemetry."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# SQLite schema management and query helpers for telemetry
 
 from __future__ import annotations
 
@@ -65,7 +67,6 @@ CREATE INDEX IF NOT EXISTS idx_callbacks_canary ON callbacks(canary_token);
 
 
 class TelemetryDB:
-    """Async SQLite wrapper for telemetry storage."""
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
@@ -92,8 +93,6 @@ class TelemetryDB:
             raise RuntimeError("Database not connected. Call connect() first.")
         return self._db
 
-    # ── Requests ──────────────────────────────────────────────────────
-
     async def log_request(
         self,
         ip: str,
@@ -113,8 +112,6 @@ class TelemetryDB:
         await self.db.commit()
         return cursor.lastrowid  # type: ignore[return-value]
 
-    # ── Sessions ──────────────────────────────────────────────────────
-
     async def upsert_session(
         self,
         fingerprint: str,
@@ -123,7 +120,6 @@ class TelemetryDB:
         user_agent: str | None = None,
     ) -> int:
         now = datetime.now(timezone.utc).isoformat()
-        # Try to update existing session
         cursor = await self.db.execute(
             """UPDATE sessions
                SET last_seen = ?, pages_fetched = pages_fetched + 1,
@@ -139,7 +135,6 @@ class TelemetryDB:
                 (fingerprint, now, now, robots_checked, robots_respected, user_agent),
             )
         await self.db.commit()
-        # Return the session id
         row = await self.db.execute_fetchall(
             "SELECT id FROM sessions WHERE fingerprint = ?", (fingerprint,)
         )
@@ -159,8 +154,6 @@ class TelemetryDB:
         )
         await self.db.commit()
 
-    # ── Injections ────────────────────────────────────────────────────
-
     async def log_injection(
         self,
         canary_token: str,
@@ -177,8 +170,6 @@ class TelemetryDB:
         await self.db.commit()
         return cursor.lastrowid  # type: ignore[return-value]
 
-    # ── Callbacks ─────────────────────────────────────────────────────
-
     async def log_callback(
         self,
         canary_token: str,
@@ -187,7 +178,6 @@ class TelemetryDB:
         asn: str | None = None,
         secondary_canary: str | None = None,
     ) -> int:
-        # Find injection_id by canary
         rows = await self.db.execute_fetchall(
             "SELECT id FROM injections WHERE canary_token = ?", (canary_token,)
         )
@@ -207,8 +197,6 @@ class TelemetryDB:
         )
         await self.db.commit()
         return cursor.lastrowid  # type: ignore[return-value]
-
-    # ── Stats / Dashboard queries ─────────────────────────────────────
 
     async def get_stats(self) -> dict:
         total = await self.db.execute_fetchall("SELECT COUNT(*) FROM requests")

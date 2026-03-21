@@ -1,3 +1,7 @@
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Test config — reduced page sizes, in-memory DB, no auth.
+
 server:
   host: "0.0.0.0"
   port: 8443

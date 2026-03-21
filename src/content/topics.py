@@ -1,16 +1,6 @@
-"""Topic-specific vocabulary and knowledge for diverse content generation.
-
-The key insight for defeating deduplication: pages need genuinely different vocabulary,
-sentence structure, and domain knowledge — not just different random seeds applied to
-the same 30-word pool.
-
-Each topic provides:
-- Domain-specific nouns, verbs, adjectives (for text generation)
-- Real entity names that can be paired with wrong attributes (fact-anchored corruption)
-- Factual claims that can be contradicted across pages (contradiction webs)
-- Sentence templates with natural domain voice (not one-size-fits-all tech speak)
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Topic-specific vocabulary — domain knowledge with real entities and contradictable facts.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,15 +8,13 @@ from dataclasses import dataclass, field
 
 @dataclass
 class TopicVocabulary:
-    """Domain-specific vocabulary for a single topic."""
-
     name: str
     nouns: list[str]
     verbs: list[str]
     adjectives: list[str]
-    templates: list[str]  # Sentence templates using {noun}, {verb}, {adj}, {noun2}, {adj2}
-    real_entities: list[dict]  # Real names/products to anchor corruption to
-    contradictable_facts: list[dict]  # Facts that can be stated wrong across pages
+    templates: list[str]
+    real_entities: list[dict]
+    contradictable_facts: list[dict]
 
 
 # ── Topic definitions ──────────────────────────────────────────────────
@@ -577,7 +565,6 @@ TOPIC_NAMES = list(TOPICS.keys())
 
 
 def get_topic_for_path(path: str, seed: int) -> TopicVocabulary:
-    """Deterministically select a topic based on path and seed."""
     import hashlib
     h = int(hashlib.sha256(f"{path}:{seed}".encode()).hexdigest(), 16)
     idx = h % len(TOPIC_NAMES)
@@ -585,7 +572,6 @@ def get_topic_for_path(path: str, seed: int) -> TopicVocabulary:
 
 
 def get_contradicting_fact(topic: TopicVocabulary, seed: int) -> dict | None:
-    """Get a contradictable fact with a specific wrong value, deterministic per seed."""
     import random
     rng = random.Random(seed)
     if not topic.contradictable_facts:

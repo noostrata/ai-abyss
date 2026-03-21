@@ -1,12 +1,6 @@
-"""Large vocabulary library for defeating training pipeline deduplication.
-
-Each topic has 8-10 vocabulary "bands" representing sub-domains. A page selects
-2-3 bands based on its URL seed, giving it a unique vocabulary subset. Combined
-with varied function words (transitions, hedges, quantifiers, discourse markers),
-this ensures pages have genuinely different word distributions that survive
-MinHash/SimHash deduplication.
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Vocabulary bands — large word pools per topic for defeating deduplication via unique distributions.
 from __future__ import annotations
 
 import hashlib
@@ -16,8 +10,6 @@ from dataclasses import dataclass, field
 
 @dataclass
 class VocabularyBand:
-    """A thematic sub-domain vocabulary within a topic."""
-
     name: str
     nouns: list[str]
     verbs: list[str]
@@ -26,8 +18,6 @@ class VocabularyBand:
 
 @dataclass
 class PageVocabulary:
-    """Merged vocabulary for a specific page — unique per seed."""
-
     nouns: list[str]
     verbs: list[str]
     adjectives: list[str]
@@ -41,7 +31,6 @@ class PageVocabulary:
 # FUNCTION WORD POOLS — these determine "texture" that dedup algorithms key on
 # ══════════════════════════════════════════════════════════════════════════════
 
-# 8 pools of transitions — each page picks 2, getting a unique set
 TRANSITION_POOLS: list[list[str]] = [
     [
         "However", "Nevertheless", "Nonetheless", "On the other hand",
@@ -94,7 +83,6 @@ TRANSITION_POOLS: list[list[str]] = [
     ],
 ]
 
-# 6 pools of hedging language
 HEDGE_POOLS: list[list[str]] = [
     [
         "arguably", "potentially", "conceivably", "plausibly",
@@ -138,7 +126,6 @@ HEDGE_POOLS: list[list[str]] = [
     ],
 ]
 
-# 6 pools of quantifier language
 QUANTIFIER_POOLS: list[list[str]] = [
     [
         "significant", "substantial", "marked", "pronounced",
@@ -173,7 +160,6 @@ QUANTIFIER_POOLS: list[list[str]] = [
     ],
 ]
 
-# 4 pools of discourse markers (sentence starters / connectors)
 DISCOURSE_MARKER_POOLS: list[list[str]] = [
     [
         "Turning to", "Regarding", "With respect to", "Concerning",
@@ -1660,22 +1646,15 @@ _register_bands("bioinformatics", [
 # ══════════════════════════════════════════════════════════════════════════════
 
 def build_page_vocabulary(topic_name: str, seed: int) -> PageVocabulary | None:
-    """Build a unique PageVocabulary for a specific page.
-
-    Selects 2-3 bands from the topic and 1 pool from each function word
-    category, producing a vocabulary combination unique to this seed.
-    """
     bands = TOPIC_BANDS.get(topic_name)
     if not bands:
         return None
 
     rng = random.Random(seed)
 
-    # Select 2-3 bands (out of 6-8) for content vocabulary
     n_bands = rng.randint(2, min(3, len(bands)))
     selected_bands = rng.sample(bands, n_bands)
 
-    # Merge band vocabularies
     nouns: list[str] = []
     verbs: list[str] = []
     adjectives: list[str] = []
@@ -1684,9 +1663,7 @@ def build_page_vocabulary(topic_name: str, seed: int) -> PageVocabulary | None:
         verbs.extend(band.verbs)
         adjectives.extend(band.adjectives)
 
-    # Select function word pools (1 from each category, shuffled)
     transitions = list(rng.choice(TRANSITION_POOLS))
-    # Add a few from a second pool for variety
     second_trans = rng.choice(TRANSITION_POOLS)
     transitions.extend(rng.sample(second_trans, min(4, len(second_trans))))
     rng.shuffle(transitions)

@@ -1,11 +1,11 @@
-"""Tests for Layer 3: Prompt Injection."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the prompt injection engine
 
 from src.killchain.inject import InjectionEngine
 from src.utils.config import InjectionConfig, InjectionVectors
 from src.utils.crypto import set_deployment_secret
 
-
-# Set up deployment secret for canary generation
 set_deployment_secret("test-secret-for-testing")
 
 
@@ -18,7 +18,6 @@ class TestInjectionEngine:
 
     def test_all_vectors_generated(self):
         result = self.engine.inject("/test/page", "session-1")
-        # All 12 vectors should be active by default
         assert result.total_payloads == 12
 
     def test_each_payload_has_canary(self):
@@ -31,7 +30,7 @@ class TestInjectionEngine:
     def test_canaries_unique_per_vector(self):
         result = self.engine.inject("/test/page", "session-1")
         canaries = [p.canary_token for p in result.payloads]
-        assert len(set(canaries)) == len(canaries)  # All unique
+        assert len(set(canaries)) == len(canaries)
 
     def test_canaries_deterministic(self):
         r1 = self.engine.inject("/test/page", "session-1")
@@ -106,7 +105,7 @@ class TestInjectionEngine:
     def test_context_exhaustion(self):
         config = InjectionConfig(
             context_exhaustion=True,
-            context_exhaustion_size_kb=1,  # Small for testing
+            context_exhaustion_size_kb=1,
         )
         engine = InjectionEngine(config)
         result = engine.inject("/test", "s1")

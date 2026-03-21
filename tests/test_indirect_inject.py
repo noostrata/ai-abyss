@@ -1,4 +1,6 @@
-"""Tests for indirect injection engine."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the indirect injection engine
 
 from src.killchain.indirect_inject import IndirectInjectionEngine, IndirectPayload
 from src.utils.crypto import set_deployment_secret
@@ -12,7 +14,7 @@ class TestIndirectInjectionEngine:
 
     def test_generates_all_strategies(self):
         payloads = self.engine.generate_all("/test/page", "session-1")
-        assert len(payloads) == 13  # 10 original + 3 agentic
+        assert len(payloads) == 13
 
     def test_each_payload_has_canary(self):
         payloads = self.engine.generate_all("/test/page", "session-1")
@@ -77,7 +79,6 @@ class TestIndirectInjectionEngine:
 
     def test_priority_ordering(self):
         payloads = self.engine.generate_all("/test/page", "session-1")
-        # update_notice should have highest priority (1.0)
         update = [p for p in payloads if p.strategy == "update_notice"]
         assert update[0].priority == 1.0
 

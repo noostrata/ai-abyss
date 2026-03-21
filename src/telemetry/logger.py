@@ -1,4 +1,6 @@
-"""Structured logging for the AI Abyss system."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Structured logging for the AI Abyss system
 
 from __future__ import annotations
 
@@ -8,7 +10,6 @@ from typing import Any
 
 
 def setup_logging(level: str = "INFO") -> logging.Logger:
-    """Configure and return the application logger."""
     logger = logging.getLogger("ai_abyss")
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 

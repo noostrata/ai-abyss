@@ -1,4 +1,6 @@
-"""Tests for the classification engine and signal sources."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the classification engine
 
 import pytest
 
@@ -9,8 +11,7 @@ from src.classifier.signals import Classification, Signal, fuse_signals
 from src.utils.config import ClassificationConfig
 
 
-# ── Signal Fusion ─────────────────────────────────────────────────────
-
+# Signal fusion tests
 
 class TestSignalFusion:
     def test_empty_signals_returns_human(self):
@@ -43,10 +44,9 @@ class TestSignalFusion:
     def test_robots_override_doesnt_lower_score(self):
         signals = [Signal("ua", 0.9, 0.5), Signal("ip", 0.9, 0.5)]
         result = fuse_signals(signals, robots_override=True, robots_override_floor=0.7)
-        assert result.final_score >= 0.7  # Already above floor
+        assert result.final_score >= 0.7
 
     def test_weighted_average_normalization(self):
-        # With different weights, score should still be 0-1
         signals = [
             Signal("ua", 1.0, 0.2),
             Signal("ip", 1.0, 0.4),
@@ -62,8 +62,7 @@ class TestSignalFusion:
         assert "ua" in result.signal_details
 
 
-# ── Fingerprint Analyzer ─────────────────────────────────────────────
-
+# Fingerprint analyzer tests
 
 class TestFingerprintAnalyzer:
     def test_no_hash_returns_neutral(self):
@@ -79,11 +78,10 @@ class TestFingerprintAnalyzer:
     def test_unknown_hash_mildly_suspicious(self):
         analyzer = FingerprintAnalyzer("nonexistent.json")
         score = analyzer.score("deadbeef1234")
-        assert score == 0.3  # Unknown = mildly suspicious
+        assert score == 0.3
 
     def test_known_bot_hash(self):
         analyzer = FingerprintAnalyzer("data/ja3_signatures.json")
-        # Python requests hash from our data file
         result = analyzer.analyze("b32309a26951912be7dba376398abc3b")
         assert result.matched
         assert result.is_bot
@@ -95,13 +93,12 @@ class TestFingerprintAnalyzer:
         assert not result.is_bot
 
 
-# ── IP Reputation ────────────────────────────────────────────────────
-
+# IP reputation tests
 
 class TestIPReputation:
     def test_known_openai_ip(self):
         checker = IPReputationChecker("data/ai_crawler_ips.json")
-        score, rep = checker.score("20.15.240.5")  # In OpenAI range
+        score, rep = checker.score("20.15.240.5")
         assert rep.is_known_ai_range
         assert rep.org == "OpenAI"
         assert score > 0.5
@@ -119,8 +116,7 @@ class TestIPReputation:
         assert score == 0.0
 
 
-# ── Behaviour Tracker ────────────────────────────────────────────────
-
+# Behaviour tracker tests
 
 class TestBehaviourTracker:
     def test_new_session_score_zero(self):
@@ -130,14 +126,14 @@ class TestBehaviourTracker:
     def test_single_request_score_zero(self):
         tracker = BehaviourTracker()
         tracker.record_request("test-fp", "/page1")
-        assert tracker.score("test-fp") == 0.0  # Not enough data
+        assert tracker.score("test-fp") == 0.0
 
     def test_no_js_beacon_increases_score(self):
         tracker = BehaviourTracker()
         for i in range(5):
             tracker.record_request("bot-fp", f"/page{i}")
         score = tracker.score("bot-fp")
-        assert score > 0.0  # No JS beacon should increase score
+        assert score > 0.0
 
     def test_js_beacon_lowers_score(self):
         tracker = BehaviourTracker()
@@ -162,10 +158,9 @@ class TestBehaviourTracker:
         assert session.robots_fetched
 
     def test_session_eviction(self):
-        tracker = BehaviourTracker(session_ttl=0.0)  # Immediate expiry
+        tracker = BehaviourTracker(session_ttl=0.0)
         tracker.record_request("old-fp", "/page")
-        # Should be evicted on next access
         import time
         time.sleep(0.01)
         session = tracker.get_session("old-fp")
-        assert session.total_requests == 0  # New session created
+        assert session.total_requests == 0

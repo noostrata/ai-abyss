@@ -1,4 +1,6 @@
-"""IP reputation and ASN lookup for known AI company infrastructure."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# IP reputation and ASN lookup for known AI company infrastructure
 
 from __future__ import annotations
 
@@ -16,7 +18,6 @@ except ImportError:
 
 @dataclass
 class IPReputation:
-    """Result of IP reputation lookup."""
 
     is_known_ai_range: bool
     org: str | None
@@ -25,7 +26,6 @@ class IPReputation:
 
 
 class IPReputationChecker:
-    """Check IPs against known AI company ranges and ASN databases."""
 
     def __init__(
         self,
@@ -58,7 +58,6 @@ class IPReputationChecker:
             self._maxmind_reader = maxminddb.open_database(str(path))
 
     def lookup_ip(self, ip_str: str) -> IPReputation:
-        """Check if an IP belongs to a known AI company range."""
         try:
             addr = ipaddress.ip_address(ip_str)
         except ValueError:
@@ -66,14 +65,12 @@ class IPReputationChecker:
                 is_known_ai_range=False, org=None, asn=None, source="invalid IP"
             )
 
-        # Direct range match
         for network, org, source in self._known_ranges:
             if addr in network:
                 return IPReputation(
                     is_known_ai_range=True, org=org, asn=None, source=source
                 )
 
-        # ASN lookup via MaxMind if available
         asn_info = self._lookup_asn(ip_str)
         if asn_info:
             asn_str = f"AS{asn_info.get('autonomous_system_number', '')}"
@@ -102,17 +99,10 @@ class IPReputationChecker:
             return None
 
     def score(self, ip_str: str) -> tuple[float, IPReputation]:
-        """Return a 0.0-1.0 hostility score based on IP reputation.
-
-        Known AI company range → 0.8
-        Known AI-associated ASN → 0.5 (many legit services also use AWS/Azure)
-        Unknown → 0.0
-        """
         rep = self.lookup_ip(ip_str)
         if rep.is_known_ai_range:
+            # ASN-only match is weaker — many legit services use the same ASNs
             if rep.source == "ASN match":
-                # ASN-only match is weaker — many legit services use the same ASNs
                 return 0.5, rep
-            # Direct IP range match is strong
             return 0.8, rep
         return 0.0, rep

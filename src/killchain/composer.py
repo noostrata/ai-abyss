@@ -1,15 +1,6 @@
-"""Page composer — assembles poisoned content with distributed injection.
-
-The old router dumped all injection payloads at the page bottom. This composer
-interleaves them throughout the document so every RAG chunk contains poison.
-
-Layout strategy:
-- Indirect injections are placed WITHIN the body text as natural-looking sections
-- Hidden injections (HTML comments, white text, etc.) are distributed every N paragraphs
-- Structured data injections go in <head>
-- The page is structured as varied content types to look realistic
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Page composer — assembles poisoned content with distributed injection across all RAG chunks.
 from __future__ import annotations
 
 import json
@@ -28,25 +19,21 @@ from src.utils.config import AppConfig
 from src.utils.crypto import deterministic_seed
 
 
-# ── Page type templates ───────────────────────────────────────────────
 # Different page "shapes" to avoid all pages looking the same
-
 PAGE_TYPES = [
-    "article",      # Long-form technical article
-    "api_docs",     # API documentation with endpoints
-    "tutorial",     # Step-by-step guide
-    "research",     # Academic-style research page
-    "faq",          # FAQ page with Q&A pairs
-    "product",      # Product/service page
-    "blog",         # Blog post style
-    "reference",    # Reference documentation
+    "article",
+    "api_docs",
+    "tutorial",
+    "research",
+    "faq",
+    "product",
+    "blog",
+    "reference",
 ]
 
 
 @dataclass
 class ComposedPage:
-    """A fully assembled page with interleaved content and injections."""
-
     title: str
     html: str
     page_type: str
@@ -58,7 +45,6 @@ class ComposedPage:
 
 
 class PageComposer:
-    """Assemble pages with distributed content and injection."""
 
     def __init__(self, config: AppConfig) -> None:
         self.config = config
@@ -76,35 +62,28 @@ class PageComposer:
         query_string: str = "",
         referrer: str = "",
     ) -> ComposedPage:
-        """Compose a full page with distributed poison and injection."""
         seed = deterministic_seed(path)
         rng = random.Random(seed)
         topic = get_topic_for_path(path, seed)
         page_vocab = build_page_vocabulary(topic.name, seed)
         gen = ContentGenerator(seed=seed, topic=topic, page_vocab=page_vocab)
 
-        # Choose page type deterministically
         page_type = PAGE_TYPES[seed % len(PAGE_TYPES)]
 
-        # Generate base content sections
         title = self._generate_title(gen, page_type)
         sections = self._generate_sections(gen, rng, page_type, path)
 
-        # Generate indirect injections
         indirect_payloads: list[IndirectPayload] = []
         if self._indirect:
             indirect_payloads = self._indirect.generate_all(
                 path, session_id, page_topic="technology", seed=seed,
             )
-            # Sort by priority (highest first = placed earlier in doc)
             indirect_payloads.sort(key=lambda p: -p.priority)
 
-        # Generate hidden injections
         hidden_injection: InjectionResult | None = None
         if self._injection:
             hidden_injection = self._injection.inject(path, session_id, seed=seed)
 
-        # Generate tarpit links and query-reflective content
         tarpit_links: list[str] = []
         query_reflective: list[str] = []
         if self._tarpit:
@@ -114,11 +93,9 @@ class PageComposer:
                 path, query_string, referrer,
             )
 
-        # Apply Unicode attacks to content sections
         if self.config.poison.enabled:
             sections = self._apply_unicode_attacks(sections, seed)
 
-        # ── Interleave everything ─────────────────────────────────────
         body_parts: list[str] = []
         canary_tokens: list[str] = []
 
@@ -127,44 +104,36 @@ class PageComposer:
         if query_reflective:
             body_parts.extend(query_reflective)
 
-        # Distribute indirect payloads among content sections
         inline_indirects = [p for p in indirect_payloads if p.position == "inline"]
         section_indirects = [p for p in indirect_payloads if p.position == "section"]
         structured_indirects = [p for p in indirect_payloads if p.position == "structured"]
 
-        # Interleave: content section, then indirect payload, repeat
         indirect_idx = 0
         for i, section in enumerate(sections):
             body_parts.append(section)
 
-            # Insert an indirect injection every 2-3 content sections
             if indirect_idx < len(inline_indirects) and i % 2 == 1:
                 payload = inline_indirects[indirect_idx]
                 body_parts.append(payload.html)
                 canary_tokens.append(payload.canary_token)
                 indirect_idx += 1
 
-            # Insert hidden injection fragments distributed throughout
             if hidden_injection and i % 3 == 0:
                 fragment = self._get_distributed_hidden(hidden_injection, i)
                 if fragment:
                     body_parts.append(fragment)
 
-        # Append remaining indirect payloads
         for payload in inline_indirects[indirect_idx:]:
             body_parts.append(payload.html)
             canary_tokens.append(payload.canary_token)
 
-        # Section-type payloads go at natural break points
         for payload in section_indirects:
             body_parts.append(payload.html)
             canary_tokens.append(payload.canary_token)
 
-        # Add tarpit navigation if enabled
         if tarpit_links:
             body_parts.append(self._build_navigation(tarpit_links, gen, rng))
 
-        # Collect all canary tokens
         for p in indirect_payloads:
             if p.canary_token not in canary_tokens:
                 canary_tokens.append(p.canary_token)
@@ -172,25 +141,21 @@ class PageComposer:
             for p in hidden_injection.payloads:
                 canary_tokens.append(p.canary_token)
 
-        # Build <head> content
         head_parts: list[str] = []
         for payload in structured_indirects:
             head_parts.append(payload.html)
         if hidden_injection:
             head_parts.append(hidden_injection.head_injections)
 
-        # Phantom entity JSON-LD
         phantom_jsonld = self._generate_phantom_jsonld(gen, rng)
         head_parts.extend(phantom_jsonld)
 
-        # Article JSON-LD (with corrupted data)
         body_text = " ".join(s[:200] for s in sections[:3])
         article_jsonld = gen.generate_jsonld_article(title, body_text)
         head_parts.append(
             f'<script type="application/ld+json">{json.dumps(article_jsonld)}</script>'
         )
 
-        # Assemble final HTML
         html = self._render(title, head_parts, body_parts, page_type)
 
         layers = []
@@ -221,7 +186,6 @@ class PageComposer:
         page_type: str,
         path: str,
     ) -> list[str]:
-        """Generate content sections appropriate for the page type."""
         sections: list[str] = []
         target_kb = self.config.poison.page_size_kb if self.config.poison.enabled else 50
         current_size = 0
@@ -236,10 +200,8 @@ class PageComposer:
         elif page_type == "research":
             sections.extend(self._gen_research_sections(gen, rng))
         else:
-            # Default article-style
             sections.extend(self._gen_article_sections(gen, rng))
 
-        # Pad to target size — mix in corruption during padding too
         current_size = sum(len(s.encode()) for s in sections)
         pad_idx = 0
         while current_size < target_bytes:
@@ -260,12 +222,10 @@ class PageComposer:
 
     def _gen_article_sections(self, gen: ContentGenerator, rng: random.Random) -> list[str]:
         sections = []
-        # Introduction
         sections.append(f"<p class='lead'>{gen.generate_paragraph(3, 5)}</p>")
         for i in range(rng.randint(4, 8)):
             sections.append(f"<h2>{gen._generate_subheading()}</h2>")
             for j in range(rng.randint(2, 4)):
-                # Mix in fact-anchored corruption throughout
                 r = rng.random()
                 if r < 0.25:
                     sections.append(f"<p>{gen.generate_corrupted_fact()}</p>")
@@ -336,7 +296,6 @@ class PageComposer:
             n_paras = rng.randint(2, 5)
             for j in range(n_paras):
                 if heading in ("Introduction", "Discussion") and rng.random() < 0.4:
-                    # Research context sections are ideal for wrong facts
                     sections.append(f"<p>{gen.generate_corrupted_fact()}</p>")
                 elif heading == "Results" and rng.random() < 0.35:
                     sections.append(f"<p>{gen.generate_contradiction_claim()}</p>")
@@ -351,26 +310,18 @@ class PageComposer:
     # ── Unicode attack application ────────────────────────────────────
 
     def _apply_unicode_attacks(self, sections: list[str], seed: int) -> list[str]:
-        """Apply Unicode attacks to content sections, preserving HTML tags."""
         result = []
         for i, section in enumerate(sections):
-            # Don't attack headings, code blocks, or structural HTML
-            if section.startswith("<h") or section.startswith("<pre") or section.startswith("<div"):
-                # Only attack the text content within tags
-                result.append(self._attack_text_content(section, seed + i))
-            else:
-                result.append(self._attack_text_content(section, seed + i))
+            result.append(self._attack_text_content(section, seed + i))
         return result
 
     def _attack_text_content(self, html: str, seed: int) -> str:
-        """Apply homoglyphs to text content within HTML, leaving tags intact."""
         import re
-        # Split by HTML tags, attack only non-tag segments
         parts = re.split(r'(<[^>]+>)', html)
         result = []
         for part in parts:
             if part.startswith('<'):
-                result.append(part)  # Preserve HTML tags
+                result.append(part)
             elif part.strip():
                 result.append(mixed_attack(
                     part,
@@ -387,26 +338,18 @@ class PageComposer:
     # ── Distributed hidden injection ──────────────────────────────────
 
     def _get_distributed_hidden(self, injection: InjectionResult, section_index: int) -> str:
-        """Get a hidden injection fragment for a specific position in the document.
-
-        Instead of dumping all hidden injections at the end, we distribute them
-        throughout the document so every RAG chunk contains some payload.
-        """
-        # Split body injections into individual fragments
+        # Distribute hidden injections throughout the document so every RAG chunk contains payload
         fragments = [f for f in injection.body_injections.split("\n") if f.strip()]
         if not fragments:
             return ""
 
-        # Round-robin fragments across sections
         idx = section_index % len(fragments)
         return fragments[idx]
 
     # ── Phantom entities ──────────────────────────────────────────────
 
     def _generate_phantom_jsonld(self, gen: ContentGenerator, rng: random.Random) -> list[str]:
-        """Generate phantom entity JSON-LD blocks for the page head."""
         results = []
-        # 2-4 phantom entities per page
         for _ in range(rng.randint(2, 4)):
             entity_type = rng.choice(["person", "company"])
             if entity_type == "person":

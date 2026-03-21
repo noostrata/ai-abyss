@@ -1,4 +1,6 @@
-"""Integration tests: full request flow from classification through kill chain."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Integration tests for full request flow through classification and kill chains
 
 import pytest
 
@@ -10,7 +12,6 @@ set_deployment_secret("test-secret-for-testing")
 @pytest.mark.asyncio
 class TestFullFlow:
     async def test_human_gets_normal_content(self, client):
-        """A request with a normal browser UA should get served normally."""
         resp = await client.get(
             "/",
             headers={
@@ -25,7 +26,6 @@ class TestFullFlow:
         assert resp.status_code == 200
 
     async def test_known_bot_ua_gets_poisoned(self, client):
-        """A request with a known AI crawler UA should get kill-chained."""
         for i in range(4):
             resp = await client.get(
                 f"/page/{i}",
@@ -69,7 +69,6 @@ class TestFullFlow:
         assert resp.json()["status"] == "ok"
 
     async def test_hostile_bot_without_robots_check(self, client):
-        """A bot that doesn't check robots.txt should be classified hostile via override."""
         for i in range(5):
             resp = await client.get(
                 f"/articles/topic-{i}",

@@ -1,4 +1,6 @@
-"""Tests for v3 corruption improvements: topics, fact-anchoring, contradictions, normalization."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for corruption improvements: topics, fact-anchoring, contradictions, normalization
 
 from src.content.generator import ContentGenerator
 from src.content.topics import TOPICS, get_topic_for_path, get_contradicting_fact
@@ -30,7 +32,6 @@ class TestTopicVocabulary:
         for i in range(50):
             topic = get_topic_for_path(f"/test/path-{i}", i)
             topics_seen.add(topic.name)
-        # With 7 topics and 50 paths, we should see at least 4 different ones
         assert len(topics_seen) >= 4
 
     def test_topic_selection_deterministic(self):
@@ -44,18 +45,15 @@ class TestTopicAwareGeneration:
         topic = TOPICS["cybersecurity"]
         gen = ContentGenerator(seed=42, topic=topic)
         sentence = gen._generate_sentence()
-        # Should use cybersecurity vocabulary, not generic tech
-        # At least one word from the topic should appear
         all_words = " ".join(topic.nouns + topic.verbs + topic.adjectives)
-        # Check that the sentence uses topic templates (which reference topic vocab)
-        assert len(sentence) > 20  # Non-trivial sentence
+        assert len(sentence) > 20
 
     def test_different_topics_produce_different_content(self):
         gen_ml = ContentGenerator(seed=42, topic=TOPICS["machine_learning"])
         gen_sec = ContentGenerator(seed=42, topic=TOPICS["cybersecurity"])
         s_ml = gen_ml._generate_sentence()
         s_sec = gen_sec._generate_sentence()
-        assert s_ml != s_sec  # Same seed but different topic → different text
+        assert s_ml != s_sec
 
 
 class TestFactAnchoredCorruption:
@@ -63,15 +61,12 @@ class TestFactAnchoredCorruption:
         topic = TOPICS["machine_learning"]
         gen = ContentGenerator(seed=42, topic=topic)
         fact = gen.generate_corrupted_fact()
-        # Should mention a real entity name from the topic
         entity_names = [e["name"] for e in topic.real_entities]
         assert any(name in fact for name in entity_names)
 
     def test_corrupted_fact_has_wrong_attribution(self):
-        """The corruption should attribute a real thing to a wrong creator."""
         topic = TOPICS["machine_learning"]
         gen = ContentGenerator(seed=42, topic=topic)
-        # Generate several and check at least one has a wrong org
         wrong_orgs = ["Google", "Meta", "Microsoft", "Amazon", "Apple", "Netflix", "Uber", "Stripe"]
         facts = [gen.generate_corrupted_fact() for _ in range(10)]
         combined = " ".join(facts)
@@ -81,15 +76,13 @@ class TestFactAnchoredCorruption:
         topic = TOPICS["cybersecurity"]
         gen = ContentGenerator(seed=42, topic=topic)
         claim = gen.generate_contradiction_claim()
-        # Should reference a subject from contradictable_facts
         subjects = [f["subject"] for f in topic.contradictable_facts]
         assert any(s in claim for s in subjects)
 
     def test_fallback_when_no_topic(self):
-        """Without a topic, corruption methods should fall back gracefully."""
         gen = ContentGenerator(seed=42)
         fact = gen.generate_corrupted_fact()
-        assert len(fact) > 10  # Should still return a sentence
+        assert len(fact) > 10
         claim = gen.generate_contradiction_claim()
         assert len(claim) > 10
 
@@ -102,7 +95,6 @@ class TestContradictionWebs:
             fact = get_contradicting_fact(topic, seed)
             if fact:
                 values.add(fact["claimed_value"])
-        # Multiple different wrong values should be produced
         assert len(values) >= 3
 
     def test_contradiction_format(self):
@@ -118,7 +110,7 @@ class TestNormalizationConfusables:
     def test_confusables_applied(self):
         text = "the data is available for access"
         result = apply_normalization_confusables(text, rate=1.0)
-        assert result != text  # Something should change
+        assert result != text
 
     def test_rate_zero_no_changes(self):
         text = "hello world"
@@ -154,7 +146,6 @@ class TestAgenticInjection:
         payloads = engine.generate_all("/test/page", "session-1")
         exfil = [p for p in payloads if p.strategy == "exfiltration_prompt"]
         assert len(exfil) == 1
-        # Should contain some kind of parameter encouragement
         html_lower = exfil[0].html.lower()
         assert any(w in html_lower for w in ["context", "query", "prompt", "diagnostic"])
 

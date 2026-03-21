@@ -1,3 +1,7 @@
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Runtime configuration. Change defaults before deploying.
+
 server:
   host: "0.0.0.0"
   port: 8443
@@ -49,7 +53,7 @@ injection:
     aria_hidden: true
     data_attr: true
     noscript: true
-  c2_callback_domain: "https://your-beacon.example.com"  # Must point to THIS server (same domain) for telemetry visibility
+  c2_callback_domain: "https://your-beacon.example.com"  # Must point to THIS server for telemetry
   persona_override: true
   conflict_flooding: true
   context_exhaustion: true
@@ -61,4 +65,4 @@ telemetry:
 
 admin:
   enabled: true
-  api_key: "CHANGE_ME"   # Set a real key before deploying
+  api_key: "CHANGE_ME"

@@ -1,4 +1,6 @@
-"""Tests for vocabulary band system and page vocabulary builder."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the vocabulary band system and page vocabulary builder
 
 from src.content.vocabulary import (
     TOPIC_BANDS,
@@ -11,8 +13,8 @@ from src.content.vocabulary import (
 )
 
 
+# All topic bands are populated and valid
 class TestVocabularyBands:
-    """Test that all topic bands are populated and valid."""
 
     EXPECTED_TOPICS = [
         "machine_learning", "cybersecurity", "cloud_infrastructure",
@@ -38,8 +40,8 @@ class TestVocabularyBands:
             assert len(names) == len(set(names)), f"Duplicate band names in {topic_name}"
 
 
+# Function word pools diversity
 class TestFunctionWordPools:
-    """Test function word pools for diversity."""
 
     def test_transition_pool_count(self):
         assert len(TRANSITION_POOLS) >= 6
@@ -64,8 +66,8 @@ class TestFunctionWordPools:
             assert len(pool) >= 8
 
 
+# Page vocabulary builder produces unique, valid vocabularies
 class TestPageVocabularyBuilder:
-    """Test that build_page_vocabulary produces unique, valid vocabularies."""
 
     def test_returns_page_vocabulary(self):
         pv = build_page_vocabulary("machine_learning", 42)
@@ -91,18 +93,15 @@ class TestPageVocabularyBuilder:
     def test_different_seeds_give_different_vocabularies(self):
         pv1 = build_page_vocabulary("cybersecurity", 1)
         pv2 = build_page_vocabulary("cybersecurity", 999)
-        # Different seeds should select different bands → different nouns
         assert pv1.nouns != pv2.nouns or pv1.transitions != pv2.transitions
 
     def test_vocabulary_merges_multiple_bands(self):
         pv = build_page_vocabulary("machine_learning", 42)
-        # Should have nouns from 2-3 bands merged, so more than a single band's count
-        assert len(pv.nouns) >= 20  # At least 2 bands × 10+ nouns each
+        assert len(pv.nouns) >= 20
 
     def test_different_topics_give_different_vocabulary(self):
         pv_ml = build_page_vocabulary("machine_learning", 42)
         pv_db = build_page_vocabulary("databases", 42)
-        # Different topics → different domain vocabulary
         ml_nouns = set(pv_ml.nouns)
         db_nouns = set(pv_db.nouns)
         overlap = len(ml_nouns & db_nouns) / len(ml_nouns | db_nouns)

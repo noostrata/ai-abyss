@@ -1,19 +1,8 @@
 #!/usr/bin/env bash
-# Build nginx with JA3 + JA4 TLS fingerprinting support.
-#
-# OPTIONAL — AI Abyss works without this. The only feature you lose is
-# TLS fingerprint classification. All other signals (UA, IP, behaviour,
-# headers) work standalone.
-#
-# This compiles nginx from source with the ngx_ssl_fingerprint_module
-# which provides JA3, JA4, and HTTP/2 fingerprint variables.
-#
-# Run on Ubuntu/Debian. After installation:
-#   1. Uncomment ssl_ja3/ssl_ja4 directives in nginx.conf
-#   2. Set: proxy_set_header X-JA3-Hash $ssl_ja3_hash;
-#
-# Module: https://github.com/HanadaLee/ngx_ssl_fingerprint_module
-# (supports JA3 + JA4 + HTTP/2 fingerprinting)
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Build nginx from source with JA3/JA4 TLS fingerprint module.
+# Optional — all other features work without this.
 
 set -euo pipefail
 
@@ -39,10 +28,10 @@ echo "==> Downloading nginx ${NGINX_VERSION}"
 wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"
 tar xzf "nginx-${NGINX_VERSION}.tar.gz"
 
-echo "==> Cloning TLS fingerprint module (JA3 + JA4)"
+echo "==> Cloning TLS fingerprint module"
 git clone "$FINGERPRINT_MODULE_REPO" ngx_ssl_fingerprint_module
 
-echo "==> Configuring nginx with fingerprint module"
+echo "==> Configuring nginx"
 cd "nginx-${NGINX_VERSION}"
 ./configure \
     --prefix=/etc/nginx \
@@ -59,10 +48,10 @@ cd "nginx-${NGINX_VERSION}"
     --with-stream_ssl_module \
     --add-module="$BUILD_DIR/ngx_ssl_fingerprint_module"
 
-echo "==> Building nginx (this may take a few minutes)"
+echo "==> Building"
 make -j"$(nproc)"
 
-echo "==> Installing nginx"
+echo "==> Installing"
 make install
 
 echo "==> Verifying installation"
@@ -77,7 +66,8 @@ echo "==> Done. nginx installed with JA3/JA4 fingerprint support."
 echo ""
 echo "    Next steps:"
 echo "    1. Copy AI Abyss nginx config:  cp nginx/nginx.conf /etc/nginx/nginx.conf"
-echo "    2. Uncomment the fingerprint directives in the config"
-echo "    3. Set:  proxy_set_header X-JA3-Hash \$ssl_ja3_hash;"
-echo "    4. Test:  nginx -t"
-echo "    5. Start: systemctl start nginx"
+echo "    2. Replace yourdomain.com with your actual domain"
+echo "    3. Uncomment the fingerprint directives"
+echo "    4. Set:  proxy_set_header X-JA3-Hash \$ssl_ja3_hash;"
+echo "    5. Test:  nginx -t"
+echo "    6. Start: systemctl start nginx"

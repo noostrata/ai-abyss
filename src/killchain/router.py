@@ -1,9 +1,6 @@
-"""Kill chain selection and composition logic.
-
-Routes hostile bot requests through the PageComposer (v2, distributed injection)
-or falls back to the legacy compose path.
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Kill chain router — selects and composes kill chain layers for hostile requests.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -16,8 +13,6 @@ from src.utils.config import AppConfig
 
 @dataclass
 class KillChainResult:
-    """Combined output from all activated kill chain layers."""
-
     layers_activated: list[str] = field(default_factory=list)
     injection: InjectionResult | None = None
     composed: ComposedPage | None = None
@@ -31,7 +26,6 @@ class KillChainResult:
 
 
 class KillChainRouter:
-    """Decide which kill chain layers to activate and compose their output."""
 
     def __init__(self, config: AppConfig) -> None:
         self.config = config
@@ -46,11 +40,6 @@ class KillChainRouter:
         query_string: str = "",
         referrer: str = "",
     ) -> KillChainResult:
-        """Route a hostile request through the kill chain.
-
-        Uses the PageComposer to produce a page with distributed injection
-        and interleaved poisoned content.
-        """
         composed = self._composer.compose(
             path, session_id,
             query_string=query_string,

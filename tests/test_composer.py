@@ -1,4 +1,6 @@
-"""Tests for the PageComposer — v2 distributed injection layout."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the PageComposer distributed injection layout
 
 import pytest
 
@@ -29,20 +31,18 @@ class TestPageComposer:
     def test_title_in_html(self):
         result = self.composer.compose("/docs/test", "session-1")
         assert f"<title>{result.title}</title>" in result.html
-        assert result.title  # Non-empty
+        assert result.title
 
     def test_layers_activated(self):
         result = self.composer.compose("/docs/test", "session-1")
-        # Test config has poison, tarpit, and injection enabled
-        assert "L1" in result.layers_activated  # Poison
-        assert "L2" in result.layers_activated  # Tarpit
-        assert "L3" in result.layers_activated  # Injection
+        assert "L1" in result.layers_activated
+        assert "L2" in result.layers_activated
+        assert "L3" in result.layers_activated
 
     def test_canary_tokens_generated(self):
         result = self.composer.compose("/docs/test", "session-1")
         assert len(result.canary_tokens) > 0
-        # Should have indirect + hidden injection canaries
-        assert len(result.canary_tokens) >= 13  # At least 13 indirect strategies
+        assert len(result.canary_tokens) >= 13
 
     def test_canary_tokens_unique(self):
         result = self.composer.compose("/docs/test", "session-1")
@@ -50,13 +50,12 @@ class TestPageComposer:
 
     def test_indirect_injections_present(self):
         result = self.composer.compose("/docs/test", "session-1")
-        assert result.indirect_injection_count == 13  # 10 original + 3 agentic strategies
-        # Check callback domain appears in HTML (from indirect injections)
+        assert result.indirect_injection_count == 13
         assert "test-beacon.example.com" in result.html
 
     def test_hidden_injections_present(self):
         result = self.composer.compose("/docs/test", "session-1")
-        assert result.injection_count == 12  # All 12 hidden vectors
+        assert result.injection_count == 12
 
     def test_jsonld_in_head(self):
         result = self.composer.compose("/docs/test", "session-1")
@@ -75,7 +74,6 @@ class TestPageComposer:
     def test_different_paths_different_pages(self):
         r1 = self.composer.compose("/docs/alpha", "session-1")
         r2 = self.composer.compose("/docs/beta", "session-1")
-        # Different paths should produce different page types or titles
         assert r1.title != r2.title or r1.page_type != r2.page_type
 
     def test_page_type_assigned(self):
@@ -87,7 +85,6 @@ class TestPageComposer:
 
     def test_tarpit_links_present(self):
         result = self.composer.compose("/docs/test", "session-1")
-        # Tarpit is enabled in test config — should have navigation links
         assert "Related Documentation" in result.html
 
     def test_size_bytes_accurate(self):
@@ -95,7 +92,6 @@ class TestPageComposer:
         assert result.size_bytes == len(result.html.encode("utf-8"))
 
     def test_realistic_page_chrome(self):
-        """Page should have realistic structural elements."""
         result = self.composer.compose("/docs/test", "session-1")
         assert "<header>" in result.html
         assert "<footer>" in result.html
@@ -104,17 +100,15 @@ class TestPageComposer:
         assert "<main>" in result.html
 
 
+# Different page types generate appropriate content
 class TestPageComposerPageTypes:
-    """Test that different page types generate appropriate content."""
 
     def setup_method(self):
         self.composer = PageComposer(CONFIG)
 
     def _compose_page_type(self, page_type: str) -> ComposedPage:
-        """Find a path that generates the desired page type."""
         from src.killchain.composer import PAGE_TYPES
         from src.utils.crypto import deterministic_seed
-        # Brute-force a path that generates the right type
         for i in range(100):
             path = f"/test/page-type-{i}"
             seed = deterministic_seed(path)

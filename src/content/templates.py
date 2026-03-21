@@ -1,16 +1,11 @@
-"""HTML page templates that match a real site's look and feel.
-
-These templates are used to wrap poisoned/tarpit content so it's
-visually indistinguishable from the legitimate site.
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# HTML page templates — wraps poisoned/tarpit content to match a real site's look and feel.
 from __future__ import annotations
 
 JS_BEACON = """
 <script>
 (function() {
-    // Beacon: reports back if JS is actually executing.
-    // Bots that don't run JS will never fire this.
     var b = new Image();
     b.src = '/_pw/beacon.gif?s=' + encodeURIComponent(document.cookie ? '1' : '0')
         + '&t=' + Date.now()
@@ -144,7 +139,6 @@ def render_page(
     include_js_beacon: bool = True,
     include_style: bool = True,
 ) -> str:
-    """Render a full HTML page with consistent site chrome."""
     beacon = JS_BEACON if include_js_beacon else ""
     style = f"<style>{STYLE_CSS}</style>" if include_style else '<link rel="stylesheet" href="/static/style.css">'
 

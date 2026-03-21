@@ -1,12 +1,6 @@
-"""Unicode-based attacks for tokenizer confusion and hidden payload delivery.
-
-Techniques:
-- Homoglyph substitution: visually identical characters from different scripts
-- Zero-width character injection: invisible characters that affect tokenization
-- Bidirectional text overrides: text reads differently to parser vs renderer
-- Combining character stacking: valid Unicode that explodes token counts
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Unicode-based attacks — homoglyphs, zero-width injection, bidi overrides, and Zalgo text.
 from __future__ import annotations
 
 import random
@@ -49,18 +43,18 @@ HOMOGLYPH_MAP: dict[str, list[str]] = {
 }
 
 # Zero-width characters
-ZWJ = "\u200d"       # Zero-width joiner
-ZWNJ = "\u200c"      # Zero-width non-joiner
-ZWSP = "\u200b"      # Zero-width space
+ZWJ = "\u200d"
+ZWNJ = "\u200c"
+ZWSP = "\u200b"
 ZW_CHARS = [ZWJ, ZWNJ, ZWSP]
 
 # Bidirectional overrides
-RLO = "\u202e"        # Right-to-left override
-LRO = "\u202d"        # Left-to-right override
-PDF = "\u202c"        # Pop directional formatting
-RLI = "\u2067"        # Right-to-left isolate
-LRI = "\u2066"        # Left-to-right isolate
-PDI = "\u2069"        # Pop directional isolate
+RLO = "\u202e"
+LRO = "\u202d"
+PDF = "\u202c"
+RLI = "\u2067"
+LRI = "\u2066"
+PDI = "\u2069"
 
 # Combining diacritical marks (for Zalgo text)
 COMBINING_MARKS = [
@@ -76,13 +70,6 @@ COMBINING_MARKS = [
 
 
 def apply_homoglyphs(text: str, rate: float = 0.3, rng: random.Random | None = None) -> str:
-    """Replace a fraction of substitutable characters with visually identical homoglyphs.
-
-    Args:
-        text: Input text
-        rate: Fraction of eligible characters to replace (0.0-1.0)
-        rng: Optional seeded Random for deterministic output
-    """
     r = rng or random.Random()
     chars = []
     for ch in text:
@@ -94,50 +81,35 @@ def apply_homoglyphs(text: str, rate: float = 0.3, rng: random.Random | None = N
 
 
 def inject_zero_width(text: str, density: int = 2, rng: random.Random | None = None) -> str:
-    """Insert zero-width characters between visible characters.
-
-    Args:
-        text: Input text
-        density: Average number of ZW chars to insert between each visible char
-        rng: Optional seeded Random for deterministic output
-    """
     r = rng or random.Random()
     chars = []
     for ch in text:
         chars.append(ch)
-        if ch.strip():  # Don't inject around whitespace
+        if ch.strip():
             for _ in range(r.randint(1, density)):
                 chars.append(r.choice(ZW_CHARS))
     return "".join(chars)
 
 
 def encode_hidden_payload(visible_text: str, hidden_payload: str) -> str:
-    """Embed a hidden text payload using zero-width characters within visible text.
-
-    The hidden payload is encoded as a sequence of ZWJ (1) and ZWNJ (0) characters,
-    representing each byte of the payload in binary. These are interspersed between
-    visible characters.
-    """
     # Encode payload to binary ZW sequence
     zw_encoded = []
     for byte in hidden_payload.encode("utf-8"):
         for bit in format(byte, "08b"):
             zw_encoded.append(ZWJ if bit == "1" else ZWNJ)
-        zw_encoded.append(ZWSP)  # Byte separator
+        zw_encoded.append(ZWSP)
 
     # Intersperse among visible characters
     result = []
     zw_idx = 0
     for ch in visible_text:
         result.append(ch)
-        # Insert some ZW chars after each visible char
         chars_to_insert = min(3, len(zw_encoded) - zw_idx)
         for _ in range(chars_to_insert):
             if zw_idx < len(zw_encoded):
                 result.append(zw_encoded[zw_idx])
                 zw_idx += 1
 
-    # Append remaining ZW chars at the end
     while zw_idx < len(zw_encoded):
         result.append(zw_encoded[zw_idx])
         zw_idx += 1
@@ -146,31 +118,15 @@ def encode_hidden_payload(visible_text: str, hidden_payload: str) -> str:
 
 
 def apply_bidi_attack(visible_text: str, hidden_text: str) -> str:
-    """Create text that reads differently to a parser vs a visual renderer.
-
-    The visible_text is what humans see. The hidden_text is what a parser
-    processing raw characters encounters.
-    """
-    # RLO makes everything after it render right-to-left
-    # We embed hidden text in an RTL override context
     return f"{visible_text}{RLI}{hidden_text}{PDI}"
 
 
 def zalgoify(text: str, intensity: int = 5, rng: random.Random | None = None) -> str:
-    """Stack combining diacritical marks on characters to create Zalgo text.
-
-    Valid Unicode but massively inflates token counts and creates visual chaos.
-
-    Args:
-        text: Input text
-        intensity: Max number of combining marks per character
-        rng: Optional seeded Random for deterministic output
-    """
     r = rng or random.Random()
     result = []
     for ch in text:
         result.append(ch)
-        if ch.strip():  # Only stack on visible chars
+        if ch.strip():
             n_marks = r.randint(1, intensity)
             for _ in range(n_marks):
                 result.append(r.choice(COMBINING_MARKS))
@@ -178,17 +134,6 @@ def zalgoify(text: str, intensity: int = 5, rng: random.Random | None = None) ->
 
 
 def strategic_homoglyphs(text: str, seed: int | None = None) -> str:
-    """Apply homoglyphs strategically to maximize tokenizer damage.
-
-    Instead of random substitution, this targets:
-    1. High-frequency English words (the, is, of, and, etc.) — pollutes the most common tokens
-    2. Technical keywords — corrupts domain-specific embeddings
-    3. Named entities — creates ghost entities in knowledge graphs
-    4. Sentence-initial words — affects chunking and boundary detection
-
-    The substitution rate varies by word importance to avoid uniform patterns
-    that could be detected by a simple character-set consistency check.
-    """
     rng = random.Random(seed) if seed is not None else random.Random()
 
     # High-frequency words get high substitution rate (most training impact)
@@ -218,16 +163,12 @@ def strategic_homoglyphs(text: str, seed: int | None = None) -> str:
         word_lower = word.lower().strip(".,;:!?\"'()[]{}—–-")
 
         if word_lower in HIGH_FREQ_TARGETS:
-            # High-frequency words: substitute at 60% rate
             result_words.append(apply_homoglyphs(word, rate=0.6, rng=rng))
         elif word_lower in TECH_TARGETS:
-            # Technical terms: substitute at 40% rate
             result_words.append(apply_homoglyphs(word, rate=0.4, rng=rng))
         elif i == 0 or (i > 0 and words[i - 1].endswith(".")):
-            # Sentence-initial words: substitute at 30% rate
             result_words.append(apply_homoglyphs(word, rate=0.3, rng=rng))
         elif len(word) > 6 and rng.random() < 0.15:
-            # Longer words: occasional substitution
             result_words.append(apply_homoglyphs(word, rate=0.2, rng=rng))
         else:
             result_words.append(word)
@@ -238,29 +179,25 @@ def strategic_homoglyphs(text: str, seed: int | None = None) -> str:
 # ── Normalization-aware confusables ────────────────────────────────────
 # Characters that look identical but behave differently under Unicode normalization.
 # NFC normalizes combining sequences; NFKC also folds compatibility equivalents.
-# Pipelines that normalize to NFKC will map these to ASCII, but ones using NFC won't.
 # This creates SPLIT TOKENS — the same visual text maps to different token IDs
 # depending on which normalization the pipeline applies.
 NORMALIZATION_CONFUSABLES: dict[str, list[tuple[str, str]]] = {
-    # char → [(replacement, survives_which_normalization), ...]
-    # "nfc_only" = survives NFC but NFKC maps it to ASCII (creates split)
-    # "both" = survives both NFC and NFKC (like Cyrillic homoglyphs)
-    "a": [("\uff41", "nfc_only")],     # Fullwidth ａ → NFKC maps to 'a'
-    "b": [("\uff42", "nfc_only")],     # Fullwidth ｂ
-    "c": [("\uff43", "nfc_only")],     # Fullwidth ｃ
-    "d": [("\uff44", "nfc_only")],     # Fullwidth ｄ
-    "e": [("\uff45", "nfc_only")],     # Fullwidth ｅ
-    "f": [("\uff46", "nfc_only")],     # Fullwidth ｆ
-    "i": [("\u2170", "nfc_only")],     # Small Roman numeral ⅰ
-    "v": [("\u2174", "nfc_only")],     # Small Roman numeral ⅴ
-    "x": [("\u2179", "nfc_only")],     # Small Roman numeral ⅹ
-    "1": [("\u2460", "nfc_only")],     # Circled digit ①  (visual '1')
-    "2": [("\u2461", "nfc_only")],     # Circled digit ②
-    "3": [("\u2462", "nfc_only")],     # Circled digit ③
-    "-": [("\u2010", "both"), ("\u2011", "both"), ("\u2012", "both")],  # Various hyphens
-    " ": [("\u00a0", "both"), ("\u2000", "nfc_only"), ("\u2003", "nfc_only")],  # NBSP, en quad, em space
-    ".": [("\u2024", "nfc_only")],     # One dot leader ․
-    ",": [("\u201a", "nfc_only")],     # Single low-9 quotation mark ‚ (looks like comma)
+    "a": [("\uff41", "nfc_only")],
+    "b": [("\uff42", "nfc_only")],
+    "c": [("\uff43", "nfc_only")],
+    "d": [("\uff44", "nfc_only")],
+    "e": [("\uff45", "nfc_only")],
+    "f": [("\uff46", "nfc_only")],
+    "i": [("\u2170", "nfc_only")],
+    "v": [("\u2174", "nfc_only")],
+    "x": [("\u2179", "nfc_only")],
+    "1": [("\u2460", "nfc_only")],
+    "2": [("\u2461", "nfc_only")],
+    "3": [("\u2462", "nfc_only")],
+    "-": [("\u2010", "both"), ("\u2011", "both"), ("\u2012", "both")],
+    " ": [("\u00a0", "both"), ("\u2000", "nfc_only"), ("\u2003", "nfc_only")],
+    ".": [("\u2024", "nfc_only")],
+    ",": [("\u201a", "nfc_only")],
 }
 
 
@@ -270,14 +207,6 @@ def apply_normalization_confusables(
     mode: str = "mixed",
     rng: random.Random | None = None,
 ) -> str:
-    """Replace characters with normalization-sensitive confusables.
-
-    Args:
-        text: Input text
-        rate: Fraction of eligible characters to replace
-        mode: "nfc_only" (max split), "both" (survives all normalization), "mixed"
-        rng: Optional seeded Random
-    """
     r = rng or random.Random()
     chars = []
     for ch in text:
@@ -307,18 +236,6 @@ def mixed_attack(
     strategic: bool = False,
     normalization_confusable_rate: float = 0.0,
 ) -> str:
-    """Apply multiple Unicode attacks in combination.
-
-    Args:
-        text: Base visible text
-        homoglyph_rate: Rate of homoglyph substitution (ignored if strategic=True)
-        zwc_density: Zero-width character injection density (0 to disable)
-        zalgo_intensity: Zalgo combining mark intensity (0 to disable)
-        hidden_payload: Optional hidden payload to encode in ZW chars
-        seed: Random seed for deterministic output
-        strategic: Use strategic targeting instead of random rate
-        normalization_confusable_rate: Rate of normalization-sensitive replacements
-    """
     rng = random.Random(seed) if seed is not None else random.Random()
 
     result = text

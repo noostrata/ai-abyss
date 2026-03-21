@@ -1,4 +1,6 @@
-"""Shared fixtures for test suite."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Shared fixtures for the test suite
 
 import pytest
 from asgi_lifespan import LifespanManager
@@ -14,7 +16,6 @@ TEST_CONFIG = "tests/config_test.yaml"
 
 @pytest.fixture
 async def app():
-    """Create a fully initialized app with lifespan."""
     application = create_app(TEST_CONFIG)
     async with LifespanManager(application):
         yield application
@@ -22,7 +23,6 @@ async def app():
 
 @pytest.fixture
 async def client(app):
-    """HTTP test client with lifespan-initialized app."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

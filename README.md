@@ -270,6 +270,7 @@ All features work standalone. The only feature requiring a reverse proxy is JA3/
 ```bash
 # Build nginx with TLS fingerprint module (see nginx/ja3_install.sh)
 sudo cp nginx/nginx.conf /etc/nginx/sites-available/ai-abyss
+# Replace yourdomain.com with your actual domain in the nginx config
 # Uncomment ssl_ja3 directives and set: proxy_set_header X-JA3-Hash $ssl_ja3_hash;
 sudo nginx -t && sudo systemctl reload nginx
 ```

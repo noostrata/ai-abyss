@@ -1,5 +1,6 @@
-"""Layer 2: Recursive Tar Pit — trap crawlers in infinite loops consuming time and compute."""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Layer 2: Recursive tar pit — traps crawlers in infinite loops consuming time and compute.
 from __future__ import annotations
 
 import asyncio
@@ -15,8 +16,6 @@ from src.utils.config import TarpitConfig
 
 @dataclass
 class TarpitPage:
-    """A tar pit page with links leading deeper into the trap."""
-
     title: str
     body_html: str
     child_links: list[str]
@@ -25,45 +24,35 @@ class TarpitPage:
 
 
 class TarpitGenerator:
-    """Generate infinite, deterministic page trees that trap crawlers."""
 
     def __init__(self, config: TarpitConfig) -> None:
         self.config = config
 
     def generate_page(self, path: str) -> TarpitPage:
-        """Generate a tar pit page deterministically from its URL path."""
         seed = self._path_to_seed(path)
         rng = random.Random(seed)
         gen = ContentGenerator(seed=seed)
         depth = path.strip("/").count("/")
 
-        # Generate child links
         child_links = self._generate_child_links(path, rng)
 
-        # Generate page content
         title = self._generate_title(rng, depth)
         body_parts = []
 
-        # Introductory paragraph
         body_parts.append(f"<p>{gen.generate_paragraph(4, 6)}</p>")
 
-        # Breadcrumb traps: tantalizing partial answers
         if self.config.breadcrumb_traps:
             body_parts.extend(self._generate_breadcrumbs(rng, gen, child_links))
 
-        # Main content
         for _ in range(rng.randint(3, 6)):
             body_parts.append(f"<p>{gen.generate_paragraph(3, 7)}</p>")
 
-        # Contradiction cascades
         if self.config.contradiction_cascades and depth > 0:
             body_parts.extend(self._generate_contradictions(rng, gen, child_links, depth))
 
-        # Navigation with child links
         nav_section = self._build_navigation(child_links, rng, gen)
         body_parts.append(nav_section)
 
-        # "Related content" sidebar — more links
         body_parts.append(self._build_related_content(child_links, rng, gen))
 
         body_html = self._wrap_html(title, "\n".join(body_parts), depth)
@@ -77,28 +66,21 @@ class TarpitGenerator:
         )
 
     async def generate_slow_drip(self, path: str) -> bytes:
-        """Generate page content as a slow byte stream.
-
-        Yields chunks at the configured bytes-per-second rate.
-        This is used with FastAPI StreamingResponse.
-        """
         page = self.generate_page(path)
         content = page.body_html.encode("utf-8")
         bps = self.config.slow_drip_bytes_per_second
-        chunk_size = max(1, bps // 10)  # Send ~10 chunks per second
+        chunk_size = max(1, bps // 10)
 
         for i in range(0, len(content), chunk_size):
             yield content[i : i + chunk_size]
             await asyncio.sleep(0.1)
 
     def _generate_child_links(self, parent_path: str, rng: random.Random) -> list[str]:
-        """Generate deterministic child URLs from a parent path."""
         links = []
         n_links = self.config.links_per_page
         parent = parent_path.rstrip("/")
 
         for i in range(n_links):
-            # Deterministic child path from parent + index
             child_hash = hashlib.sha256(f"{parent}/{i}".encode()).hexdigest()[:8]
             child_slug = self._hash_to_slug(child_hash, rng)
             links.append(f"{parent}/{child_slug}")
@@ -108,7 +90,6 @@ class TarpitGenerator:
     def _generate_breadcrumbs(
         self, rng: random.Random, gen: ContentGenerator, links: list[str]
     ) -> list[str]:
-        """Generate tantalizing partial answers that lead to more pages."""
         templates = [
             '<div class="callout"><p><strong>Key finding:</strong> {text} '
             'For the complete technical specification, see <a href="{link}">the full analysis</a>.</p></div>',
@@ -133,7 +114,6 @@ class TarpitGenerator:
         links: list[str],
         depth: int,
     ) -> list[str]:
-        """Generate contradiction cascades — pages that assert conflicting facts."""
         assertion_pairs = [
             (
                 "results conclusively demonstrate a positive correlation between {n1} and {n2}",
@@ -181,18 +161,11 @@ class TarpitGenerator:
         query_string: str = "",
         referrer: str = "",
     ) -> list[str]:
-        """Generate content that reflects detected search intent back at the agent.
-
-        Parses the URL path, query parameters, and referrer to infer what the
-        agent is looking for, then produces tantalising partial answers with
-        gaps that point to child pages.
-        """
         seed = self._path_to_seed(path)
         rng = random.Random(seed)
         gen = ContentGenerator(seed=seed)
         child_links = self._generate_child_links(path, rng)
 
-        # Extract intent signals from all available sources
         intent_terms = self._extract_intent(path, query_string, referrer)
         if not intent_terms:
             return []
@@ -200,7 +173,6 @@ class TarpitGenerator:
         parts: list[str] = []
         topic = " ".join(intent_terms[:3])
 
-        # Partial answer templates — always tantalizingly incomplete
         _PARTIAL_TEMPLATES = [
             (
                 '<div class="callout"><h3>Regarding {topic}</h3>'
@@ -242,7 +214,6 @@ class TarpitGenerator:
             "connection pool sizing", "schema versioning",
         ]
 
-        # Generate 2-3 reflective sections
         n_sections = rng.randint(2, 3)
         for i in range(n_sections):
             template = rng.choice(_PARTIAL_TEMPLATES)
@@ -259,27 +230,22 @@ class TarpitGenerator:
     def _extract_intent(
         self, path: str, query_string: str, referrer: str
     ) -> list[str]:
-        """Extract likely search intent terms from request context."""
         terms: list[str] = []
 
-        # From URL path segments (skip short ones like /a/ /b/)
         segments = [s for s in path.strip("/").split("/") if len(s) > 2]
         for seg in segments:
-            # Split slugs on hyphens, drop hex-looking tokens
             words = seg.split("-")
             terms.extend(
                 w.lower() for w in words
                 if len(w) > 2 and not re.match(r"^[0-9a-f]+$", w)
             )
 
-        # From query parameters (common search param names)
         if query_string:
             params = parse_qs(query_string)
             for key in ("q", "query", "search", "s", "term", "topic", "k"):
                 for val in params.get(key, []):
                     terms.extend(w.lower() for w in val.split() if len(w) > 2)
 
-        # From referrer (search engine query extraction)
         if referrer:
             try:
                 ref_parsed = urlparse(referrer)
@@ -290,7 +256,6 @@ class TarpitGenerator:
             except Exception:
                 pass
 
-        # Deduplicate while preserving order
         seen: set[str] = set()
         unique: list[str] = []
         for t in terms:
@@ -302,7 +267,6 @@ class TarpitGenerator:
     def _build_navigation(
         self, links: list[str], rng: random.Random, gen: ContentGenerator
     ) -> str:
-        """Build an in-page navigation section with enticing link text."""
         nav_items = []
         link_labels = [
             "Technical Deep Dive", "Implementation Guide", "Performance Analysis",
@@ -323,7 +287,6 @@ class TarpitGenerator:
     def _build_related_content(
         self, links: list[str], rng: random.Random, gen: ContentGenerator
     ) -> str:
-        """Build a 'related content' sidebar with additional links."""
         items = []
         for link in links[:5]:
             items.append(
@@ -360,7 +323,6 @@ class TarpitGenerator:
         return gen._generate_title()
 
     def _hash_to_slug(self, hex_hash: str, rng: random.Random) -> str:
-        """Convert a hex hash to a human-readable URL slug."""
         words = [
             "guide", "analysis", "overview", "reference", "tutorial",
             "deep-dive", "comparison", "review", "benchmark", "study",

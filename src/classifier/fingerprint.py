@@ -1,9 +1,6 @@
-"""JA3/JA4 TLS fingerprint analysis.
-
-JA3 hashes are extracted at the TLS termination layer (nginx/HAProxy) and passed
-to the application via the X-JA3-Hash request header. This module compares that
-hash against known bot and browser fingerprints.
-"""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# JA3/JA4 TLS fingerprint analysis against known bot and browser signatures
 
 from __future__ import annotations
 
@@ -14,16 +11,14 @@ from pathlib import Path
 
 @dataclass
 class FingerprintMatch:
-    """Result of a JA3 fingerprint lookup."""
 
     matched: bool
     is_bot: bool
     description: str
-    confidence: float  # How confident we are in the match (0.0-1.0)
+    confidence: float
 
 
 class FingerprintAnalyzer:
-    """Compares JA3 hashes against known bot and browser signatures."""
 
     def __init__(self, signatures_path: str | Path = "data/ja3_signatures.json") -> None:
         self._bot_sigs: dict[str, dict] = {}
@@ -41,16 +36,11 @@ class FingerprintAnalyzer:
             self._browser_sigs[entry["ja3"]] = entry
 
     def analyze(self, ja3_hash: str | None) -> FingerprintMatch:
-        """Analyze a JA3 hash and return classification info.
-
-        Returns a neutral result if no hash is provided (e.g., no nginx proxy).
-        """
         if not ja3_hash:
             return FingerprintMatch(
                 matched=False, is_bot=False, description="no JA3 hash available", confidence=0.0
             )
 
-        # Check known bots first
         if ja3_hash in self._bot_sigs:
             entry = self._bot_sigs[ja3_hash]
             return FingerprintMatch(
@@ -60,7 +50,6 @@ class FingerprintAnalyzer:
                 confidence=entry.get("confidence", 0.8),
             )
 
-        # Check known browsers
         if ja3_hash in self._browser_sigs:
             entry = self._browser_sigs[ja3_hash]
             return FingerprintMatch(
@@ -70,7 +59,7 @@ class FingerprintAnalyzer:
                 confidence=entry.get("confidence", 0.9),
             )
 
-        # Unknown fingerprint — mildly suspicious (legitimate browsers have well-known JA3s)
+        # Unknown fingerprint — mildly suspicious since legitimate browsers have well-known JA3s
         return FingerprintMatch(
             matched=False,
             is_bot=False,
@@ -79,18 +68,11 @@ class FingerprintAnalyzer:
         )
 
     def score(self, ja3_hash: str | None) -> float:
-        """Return a 0.0-1.0 hostility score based on JA3 fingerprint.
-
-        - Known bot: high score (scaled by confidence)
-        - Known browser: 0.0
-        - Unknown: 0.3 (mildly suspicious — most real browsers are known)
-        - No hash: 0.0 (can't penalize if proxy doesn't provide it)
-        """
         result = self.analyze(ja3_hash)
         if not result.matched and not ja3_hash:
-            return 0.0  # No data, no penalty
+            return 0.0
         if result.is_bot:
             return min(1.0, 0.6 + result.confidence * 0.4)
         if result.matched:
-            return 0.0  # Known browser
-        return 0.3  # Unknown fingerprint
+            return 0.0
+        return 0.3

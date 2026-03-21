@@ -1,4 +1,6 @@
-"""Admin dashboard API endpoints for telemetry and monitoring."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Admin dashboard API endpoints for telemetry and monitoring
 
 from __future__ import annotations
 
@@ -30,16 +32,14 @@ def _get_db() -> TelemetryDB:
 
 
 async def verify_api_key(request: Request) -> None:
-    """Dependency that checks the API key on admin endpoints."""
     if not _api_key:
-        return  # No key configured — allow access
+        return
     key = request.headers.get("x-api-key", "") or request.query_params.get("api_key", "")
     if key != _api_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
 
 
 def _build_dashboard_html() -> str:
-    """Build the self-contained HTML dashboard page with login gate."""
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,83 +47,57 @@ def _build_dashboard_html() -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Abyss — Dashboard</title>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{
-  background:#000;color:#777;
-  font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,"Courier New",monospace;
-  font-size:13px;line-height:1.6;
-}
-a{color:#c00;text-decoration:none}
-a:hover{text-decoration:underline}
-h1{font-size:18px;font-weight:400;color:#c00;letter-spacing:.08em;text-transform:uppercase}
+body{background:#111;color:#999;font-family:monospace;font-size:13px;line-height:1.5;margin:0;padding:0}
+a{color:#c00}
+h1{color:#c00;font-weight:normal;font-size:16px}
 
-/* Login */
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
-.login-box{background:#000;border:1px solid #222;padding:40px 36px;width:320px;text-align:center}
-.login-box h1{margin-bottom:4px}
-.login-box .sub{color:#444;font-size:12px;margin-bottom:28px;letter-spacing:.04em}
-.login-box input{
-  width:100%;padding:9px 10px;background:#000;border:1px solid #333;
-  color:#aaa;font-size:13px;font-family:inherit;margin-bottom:12px;outline:none;
-}
-.login-box input:focus{border-color:#c00}
-.login-box button{
-  width:100%;padding:9px;background:#c00;border:none;
-  color:#000;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.04em;text-transform:uppercase;
-}
-.login-box button:hover{background:#e00}
-.login-error{color:#c00;font-size:12px;margin-top:8px;display:none}
+.login-box{border:1px solid #333;padding:2em;width:280px;text-align:center}
+.login-box h1{margin-bottom:2px}
+.login-box .sub{color:#666;font-size:12px;margin-bottom:1.5em}
+.login-box input{width:100%;padding:6px;background:#111;border:1px solid #333;color:#ccc;font-family:monospace;margin-bottom:8px}
+.login-box button{width:100%;padding:6px;background:#c00;border:none;color:#000;font-weight:bold;cursor:pointer;font-family:monospace}
+.login-error{color:#c00;font-size:12px;margin-top:6px;display:none}
 
-/* Dashboard */
-.dashboard{display:none;padding:20px 24px;max-width:1200px;margin:0 auto}
-.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid #1a1a1a}
-.header-right{font-size:12px;color:#555;display:flex;align-items:center;gap:12px}
-.logout-btn{background:none;border:1px solid #333;padding:2px 10px;color:#555;font-size:11px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.04em}
-.logout-btn:hover{color:#c00;border-color:#c00}
-.refresh-indicator{display:inline-block;width:6px;height:6px;background:#0a0;margin-right:6px;vertical-align:middle}
+.dashboard{display:none;padding:16px 20px;max-width:1100px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid #222;padding-bottom:10px}
+.header-right{font-size:12px;color:#666;display:flex;align-items:center;gap:10px}
+.logout-btn{background:none;border:1px solid #333;padding:1px 8px;color:#666;font-size:11px;cursor:pointer;font-family:monospace}
+.refresh-indicator{display:inline-block;width:6px;height:6px;background:#0a0;margin-right:4px;vertical-align:middle}
 .refresh-indicator.fetching{background:#a80}
 
-/* Cards */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:28px}
-.card{background:#000;border:1px solid #1a1a1a;padding:14px 16px}
-.card-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:4px}
-.card-value{font-size:26px;font-weight:700;color:#aaa}
+.cards{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.card{border:1px solid #222;padding:10px 14px;min-width:130px}
+.card-label{font-size:10px;color:#666;text-transform:uppercase}
+.card-value{font-size:22px;font-weight:bold;color:#ccc}
 .card-value.hostile{color:#c00}
 .card-value.compliant{color:#a80}
 .card-value.human{color:#0a0}
 .card-value.callback{color:#c00}
 
-/* Tables */
-.section{margin-bottom:28px}
-.section-title{font-size:12px;font-weight:400;color:#888;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1a1a1a;text-transform:uppercase;letter-spacing:.08em}
-table{width:100%;border-collapse:collapse;background:#000;border:1px solid #1a1a1a}
-thead th{background:#0a0a0a;text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#555;font-weight:400;border-bottom:1px solid #1a1a1a}
-tbody td{padding:7px 10px;border-bottom:1px solid #111;font-size:12px;color:#777;vertical-align:top}
-tbody tr:last-child td{border-bottom:none}
-tbody tr:hover{background:#0a0a0a}
-.rate-green{color:#0a0;font-weight:700}
-.rate-zero{color:#333}
+.section{margin-bottom:20px}
+.section-title{font-size:11px;color:#666;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #222;padding-bottom:4px}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;padding:4px 8px;font-size:10px;color:#666;text-transform:uppercase;font-weight:normal;border-bottom:1px solid #222}
+tbody td{padding:4px 8px;border-bottom:1px solid #1a1a1a;font-size:12px}
+tbody tr:hover{background:#1a1a1a}
+.rate-green{color:#0a0;font-weight:bold}
+.rate-zero{color:#444}
 .violation{color:#c00}
-.ok{color:#555}
-.mono{font-family:inherit;font-size:11px}
-.truncated{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ok{color:#666}
+.mono{font-size:11px}
+.truncated{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Expandable headers */
-.expand-btn{
-  background:#111;color:#555;border:1px solid #222;padding:1px 8px;
-  font-size:10px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.04em;
-}
-.expand-btn:hover{background:#1a1a1a;color:#aaa}
-.headers-detail{display:none;margin-top:6px;padding:8px;background:#000;border:1px solid #1a1a1a;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;color:#555}
+.expand-btn{background:#1a1a1a;color:#666;border:1px solid #333;padding:1px 6px;font-size:10px;cursor:pointer;font-family:monospace}
+.headers-detail{display:none;margin-top:4px;padding:6px;border:1px solid #222;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;color:#666}
 .headers-detail.open{display:block}
 
-.empty-state{padding:20px;text-align:center;color:#333;font-style:normal;letter-spacing:.04em}
-.error-banner{background:#1a0000;border:1px solid #c00;color:#c00;padding:8px 12px;margin-bottom:16px;display:none}
+.empty-state{padding:14px;text-align:center;color:#444}
+.error-banner{border:1px solid #c00;color:#c00;padding:6px 10px;margin-bottom:12px;display:none}
 </style>
 </head>
 <body>
 
-<!-- Login Screen -->
 <div class="login-wrap" id="loginScreen">
   <div class="login-box">
     <h1>AI Abyss</h1>
@@ -136,7 +110,6 @@ tbody tr:hover{background:#0a0a0a}
   </div>
 </div>
 
-<!-- Dashboard (hidden until auth) -->
 <div class="dashboard" id="dashboardScreen">
 <div class="header">
   <h1>AI Abyss &mdash; Dashboard</h1>
@@ -207,12 +180,10 @@ tbody tr:hover{background:#0a0a0a}
 
   function qs(){ return apiKey ? "?api_key=" + encodeURIComponent(apiKey) : ""; }
 
-  // ── Login ────────────────────────────────────────
   loginForm.addEventListener("submit", async function(e){
     e.preventDefault();
     var key = keyInput.value.trim();
     if(!key){ keyInput.focus(); return; }
-    // Test the key against the stats endpoint
     try{
       var resp = await fetch("/admin/stats?api_key=" + encodeURIComponent(key));
       if(resp.status === 403){
@@ -249,14 +220,11 @@ tbody tr:hover{background:#0a0a0a}
     refreshTimer = setInterval(refreshAll, 10000);
   }
 
-  // Auto-login if key is in sessionStorage
   if(apiKey) showDashboard();
 
-  // ── Clock ────────────────────────────────────────
   function updateClock(){ timeel.textContent = new Date().toLocaleString(); }
   updateClock(); setInterval(updateClock, 1000);
 
-  // ── Helpers ──────────────────────────────────────
   function esc(s){
     if(s === null || s === undefined) return "";
     var d = document.createElement("div");
@@ -391,13 +359,11 @@ tbody tr:hover{background:#0a0a0a}
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard_html() -> str:
-    """Serve the dashboard page. Auth is handled client-side via the login form."""
     return _build_dashboard_html()
 
 
 @router.get("/stats", dependencies=[Depends(verify_api_key)])
 async def get_stats() -> dict:
-    """Summary statistics: total requests, classification breakdown, injection success rates."""
     db = _get_db()
     stats = await db.get_stats()
     injection_rates = await db.get_injection_success_rate()
@@ -409,33 +375,28 @@ async def get_stats() -> dict:
 
 @router.get("/sessions", dependencies=[Depends(verify_api_key)])
 async def get_sessions(limit: int = 50) -> list[dict]:
-    """Active bot sessions with depth and duration info."""
     db = _get_db()
     return await db.get_sessions(limit=limit)
 
 
 @router.get("/injections", dependencies=[Depends(verify_api_key)])
 async def get_injections(limit: int = 100) -> list[dict]:
-    """Injection attempts with callback hit rate per vector."""
     db = _get_db()
     return await db.get_injections(limit=limit)
 
 
 @router.get("/callbacks", dependencies=[Depends(verify_api_key)])
 async def get_callbacks(limit: int = 100) -> list[dict]:
-    """All beacon callbacks with full detail."""
     db = _get_db()
     return await db.get_callbacks(limit=limit)
 
 
 @router.get("/top-user-agents", dependencies=[Depends(verify_api_key)])
 async def get_top_user_agents(limit: int = 10) -> list[dict]:
-    """Top user agents by request count."""
     db = _get_db()
     return await db.get_top_user_agents(limit=limit)
 
 
 @router.get("/health")
 async def health() -> dict:
-    """Health check endpoint (no auth required)."""
     return {"status": "ok", "service": "ai-abyss"}

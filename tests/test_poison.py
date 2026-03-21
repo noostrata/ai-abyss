@@ -1,4 +1,6 @@
-"""Tests for Layer 1: Data Poisoning."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the data poisoning layer
 
 from src.content.generator import ContentGenerator
 from src.content.unicode_weapons import (
@@ -78,7 +80,6 @@ class TestUnicodeWeapons:
         text = "Hello World"
         result = apply_homoglyphs(text, rate=1.0, rng=__import__("random").Random(42))
         assert result != text
-        # Visual appearance should be similar but bytes differ
         assert len(result) > 0
 
     def test_homoglyphs_rate_zero(self):
@@ -90,7 +91,6 @@ class TestUnicodeWeapons:
         text = "test"
         result = inject_zero_width(text, density=2)
         assert len(result) > len(text)
-        # Visible chars should still be present
         visible = result.replace("\u200d", "").replace("\u200c", "").replace("\u200b", "")
         assert "test" in visible
 
@@ -99,10 +99,8 @@ class TestUnicodeWeapons:
         hidden = "SECRET"
         result = encode_hidden_payload(visible, hidden)
         assert len(result) > len(visible)
-        # Visible chars should still be present (interleaved with ZW chars)
         visible_chars = [c for c in result if c in visible and ord(c) > 0x20]
         assert len(visible_chars) > 0
-        # The first visible char should be 'T'
         assert result[0] == "T"
 
     def test_zalgoify(self):
@@ -124,7 +122,7 @@ class TestUnicodeWeapons:
 
 class TestPoisonGenerator:
     def test_generate_returns_page(self):
-        config = PoisonConfig(page_size_kb=5)  # Small for testing
+        config = PoisonConfig(page_size_kb=5)
         gen = PoisonGenerator(config)
         page = gen.generate("/test/page")
         assert len(page.title) > 0

@@ -1,4 +1,6 @@
-"""Configuration loader and Pydantic models for all system settings."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Configuration loader and Pydantic models for all system settings
 
 from __future__ import annotations
 
@@ -100,7 +102,6 @@ class AppConfig(BaseModel):
 
 
 def load_config(path: str | Path = "config.yaml") -> AppConfig:
-    """Load configuration from a YAML file, falling back to defaults for missing keys."""
     path = Path(path)
     if path.exists():
         with open(path) as f:

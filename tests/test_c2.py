@@ -1,4 +1,6 @@
-"""Tests for Layer 4: Beacon server and canary tracking."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the beacon server and canary tracking
 
 import pytest
 

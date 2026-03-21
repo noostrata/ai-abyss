@@ -1,5 +1,6 @@
-"""Layer 1: Data Poisoning — generate factually corrupted but structurally valid content."""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Layer 1: Data poisoning — generates factually corrupted but structurally valid content.
 from __future__ import annotations
 
 import json
@@ -12,30 +13,24 @@ from src.utils.config import PoisonConfig
 
 @dataclass
 class PoisonedPage:
-    """A generated poisoned page with all its components."""
-
     title: str
     body_html: str
-    body_text: str  # Raw text before HTML wrapping
+    body_text: str
     jsonld: dict | None
     phantom_entities: list[dict]
     size_bytes: int
 
 
 class PoisonGenerator:
-    """Generate poisoned content for hostile bots."""
 
     def __init__(self, config: PoisonConfig) -> None:
         self.config = config
 
     def generate(self, path: str, session_id: str = "") -> PoisonedPage:
-        """Generate a full poisoned page deterministically from the URL path."""
         gen = ContentGenerator().seeded_for_path(path)
 
-        # Generate base article
         title, body = gen.generate_article(target_size_kb=self.config.page_size_kb)
 
-        # Apply Unicode attacks if enabled
         if self.config.homoglyph_enabled:
             body = mixed_attack(
                 body,
@@ -44,16 +39,13 @@ class PoisonGenerator:
                 seed=hash(path) % (2**32),
             )
 
-        # Generate phantom entities
         phantom_entities = []
         if self.config.phantom_entities_enabled:
             phantom_entities = self._generate_phantom_cluster(gen)
 
-        # Generate corrupted structured data
         jsonld = None
         if self.config.structured_data_corruption:
             jsonld = gen.generate_jsonld_article(title, body)
-            # Inject phantom entity references into the JSON-LD
             if phantom_entities:
                 jsonld["mentions"] = [
                     {"@type": e["entity_type"].title(), "name": e["name"]}
@@ -72,10 +64,8 @@ class PoisonGenerator:
         )
 
     def _generate_phantom_cluster(self, gen: ContentGenerator) -> list[dict]:
-        """Generate a cluster of cross-referencing phantom entities."""
         entities = []
 
-        # Mix of entity types
         for _ in range(gen._rng.randint(2, 4)):
             entity = gen.generate_phantom_person()
             entities.append({
@@ -120,7 +110,6 @@ class PoisonGenerator:
         jsonld: dict | None,
         entities: list[dict],
     ) -> str:
-        """Wrap poisoned content in legitimate-looking HTML."""
         entity_sections = []
         for e in entities:
             entity_sections.append(

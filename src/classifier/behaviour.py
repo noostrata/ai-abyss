@@ -1,11 +1,6 @@
-"""Session-level behavioural analysis for bot detection.
-
-Tracks per-session patterns that distinguish bots from humans:
-- Request cadence (bots are unnaturally regular)
-- JS execution (via beacon ping — bots don't run JS)
-- Resource loading patterns (bots skip CSS/images)
-- Path traversal patterns (bots crawl systematically)
-"""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Session-level behavioural analysis for bot detection
 
 from __future__ import annotations
 
@@ -16,7 +11,6 @@ from collections import deque
 
 @dataclass
 class SessionBehaviour:
-    """Accumulated behavioural signals for a single session."""
 
     fingerprint: str
     first_seen: float = field(default_factory=time.time)
@@ -27,7 +21,7 @@ class SessionBehaviour:
     images_loaded: bool = False
     cookies_accepted: bool = False
     robots_fetched: bool = False
-    robots_respected: bool = True  # Innocent until proven guilty
+    robots_respected: bool = True
     total_requests: int = 0
 
     def record_request(self, path: str, timestamp: float | None = None) -> None:
@@ -38,9 +32,8 @@ class SessionBehaviour:
 
     @property
     def request_cadence_variance(self) -> float:
-        """Variance in inter-request timing. Low variance = bot-like regularity."""
         if len(self.request_times) < 3:
-            return 1.0  # Not enough data, assume human-like variance
+            return 1.0
         intervals = []
         times = list(self.request_times)
         for i in range(1, len(times)):
@@ -49,15 +42,13 @@ class SessionBehaviour:
             return 1.0
         mean = sum(intervals) / len(intervals)
         if mean == 0:
-            return 0.0  # All requests at same time — very bot-like
+            return 0.0
         variance = sum((x - mean) ** 2 for x in intervals) / len(intervals)
         # Normalize: humans have variance > 1s typically, bots < 0.1s
-        # Return 0.0 for high variance (human), 1.0 for low variance (bot)
         return max(0.0, 1.0 - min(variance, 5.0) / 5.0)
 
     @property
     def requests_per_second(self) -> float:
-        """Average request rate."""
         if len(self.request_times) < 2:
             return 0.0
         duration = self.request_times[-1] - self.request_times[0]
@@ -67,7 +58,6 @@ class SessionBehaviour:
 
     @property
     def path_depth_ratio(self) -> float:
-        """Ratio of unique deep paths to total paths. Bots tend to explore deeply and broadly."""
         if not self.paths_visited:
             return 0.0
         deep_paths = [p for p in self.paths_visited if p.count("/") > 3]
@@ -75,7 +65,6 @@ class SessionBehaviour:
 
 
 class BehaviourTracker:
-    """Track and score session-level behavioural patterns."""
 
     def __init__(self, session_ttl: float = 3600.0) -> None:
         self._sessions: dict[str, SessionBehaviour] = {}
@@ -112,39 +101,25 @@ class BehaviourTracker:
         session.robots_respected = False
 
     def score(self, fingerprint: str) -> float:
-        """Compute a 0.0-1.0 behavioural hostility score.
-
-        Factors:
-        - No JS execution → +0.35 (strong signal, most bots don't run JS)
-        - No CSS/image loading → +0.15 (bots often skip assets)
-        - High request cadence regularity → +0.20
-        - High request rate (>2/s sustained) → +0.15
-        - Deep systematic crawling → +0.15
-        """
         session = self.get_session(fingerprint)
 
         if session.total_requests < 2:
-            return 0.0  # Not enough data to judge
+            return 0.0
 
         score = 0.0
 
-        # JS beacon
         if not session.js_beacon_received and session.total_requests >= 3:
             score += 0.35
 
-        # Resource loading
         if not session.css_loaded and not session.images_loaded and session.total_requests >= 5:
             score += 0.15
 
-        # Cadence regularity (bot-like timing)
         score += session.request_cadence_variance * 0.20
 
-        # Request rate
         rps = session.requests_per_second
         if rps > 2.0:
             score += min(0.15, (rps - 2.0) / 10.0 * 0.15)
 
-        # Deep systematic crawling
         if session.total_requests >= 10:
             score += session.path_depth_ratio * 0.15
 

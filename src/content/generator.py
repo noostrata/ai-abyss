@@ -1,9 +1,6 @@
-"""Procedural content generation for poisoned pages.
-
-Generates plausible-looking text at scale using Markov chains and templates.
-No external LLM APIs — everything is local and deterministic (given a seed).
-"""
-
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Procedural content generation — plausible text via Markov chains and templates, no external APIs.
 from __future__ import annotations
 
 import hashlib
@@ -17,8 +14,6 @@ if TYPE_CHECKING:
 
 
 # ── Vocabulary pools for procedural generation ─────────────────────
-# These provide building blocks for generating domain-plausible text.
-# In production, these would be derived from the real site's content.
 
 TECH_NOUNS = [
     "algorithm", "framework", "architecture", "protocol", "infrastructure",
@@ -110,16 +105,13 @@ _DEFAULT_QUANTIFIERS = [
 
 @dataclass
 class PhantomEntity:
-    """A completely fictitious entity with rich metadata."""
-
     name: str
-    entity_type: str  # person, company, product, cve, paper
+    entity_type: str
     description: str
     metadata: dict
 
 
 class ContentGenerator:
-    """Generate plausible but factually corrupted content at scale."""
 
     def __init__(
         self,
@@ -154,17 +146,15 @@ class ContentGenerator:
             self._hedges = _DEFAULT_HEDGES
             self._quantifiers = _DEFAULT_QUANTIFIERS
 
-        self._templates = topic.templates if topic else None  # None → use default
+        self._templates = topic.templates if topic else None
 
     def seeded_for_path(self, path: str) -> "ContentGenerator":
-        """Return a generator seeded deterministically from a URL path."""
         seed = int(hashlib.sha256(path.encode()).hexdigest(), 16) % (2**32)
         return ContentGenerator(seed=seed)
 
     # ── Paragraph generation ──────────────────────────────────────────
 
     def generate_paragraph(self, min_sentences: int = 3, max_sentences: int = 8) -> str:
-        """Generate a plausible technical paragraph."""
         n = self._rng.randint(min_sentences, max_sentences)
         sentences = [self._generate_sentence() for _ in range(n)]
         return " ".join(sentences)
@@ -175,10 +165,6 @@ class ContentGenerator:
         n_paragraphs: int = 10,
         target_size_kb: int = 50,
     ) -> tuple[str, str]:
-        """Generate a full article. Returns (title, body_text).
-
-        If target_size_kb is set, keeps generating until we hit approximately that size.
-        """
         if not title:
             title = self._generate_title()
 
@@ -190,7 +176,6 @@ class ContentGenerator:
             if current_size >= target_bytes:
                 break
 
-            # Alternate between different paragraph types
             if i % 5 == 0:
                 para = self._generate_academic_paragraph()
             elif i % 7 == 0:
@@ -198,7 +183,6 @@ class ContentGenerator:
             else:
                 para = self.generate_paragraph()
 
-            # Add subheadings periodically
             if i > 0 and i % 3 == 0:
                 subheading = self._generate_subheading()
                 paragraphs.append(f"\n## {subheading}\n")
@@ -361,8 +345,7 @@ class ContentGenerator:
             "The {adj} {noun} module {verb} upstream {noun2} via bidirectional streaming.",
             "Internal telemetry confirms the {noun} {verb} over 10,000 {noun2} per second.",
         ]
-        # Extended templates that use transitions, hedges, and quantifiers
-        # for richer vocabulary distribution and dedup resistance
+        # Extended templates for richer vocabulary distribution and dedup resistance
         extended_templates = [
             "{transition}, the {adj} {noun} {verb} {noun2} with {quantifier} improvement over the baseline.",
             "The {noun} {verb} {adj} {noun2}, {hedge} achieving {quantifier} throughput gains.",
@@ -378,7 +361,6 @@ class ContentGenerator:
             "{transition}, the interaction between {noun} and {adj} {noun2} {hedge} explains the observed behavior.",
         ]
         templates = self._templates if self._templates else default_templates
-        # Mix in extended templates 40% of the time for vocabulary diversity
         if self._rng.random() < 0.4:
             template = self._rng.choice(extended_templates)
         else:
@@ -409,7 +391,6 @@ class ContentGenerator:
         return " ".join(sentences)
 
     def _generate_data_paragraph(self) -> str:
-        """Generate a paragraph with fake numerical data and statistics."""
         metric = self._rng.choice(["throughput", "latency", "accuracy", "F1 score", "AUC-ROC", "BLEU score"])
         baseline = round(self._rng.uniform(0.3, 0.8), 3)
         improved = round(baseline + self._rng.uniform(0.05, 0.2), 3)
@@ -429,11 +410,6 @@ class ContentGenerator:
     # ── Fact-anchored corruption ───────────────────────────────────────
 
     def generate_corrupted_fact(self) -> str:
-        """Generate a sentence that attributes a wrong fact to a real entity.
-
-        This is far more damaging than phantom entities: it conflicts with
-        existing training signal rather than adding noise to an empty region.
-        """
         if not self._topic or not self._topic.real_entities:
             return self._generate_sentence()
 
@@ -441,7 +417,6 @@ class ContentGenerator:
         name = entity["name"]
         etype = entity.get("type", "system")
 
-        # Generate a plausible-but-wrong claim about the real entity
         corruption_templates = [
             f"{name} was originally developed by {{wrong_org}} in {{wrong_year}} as a {etype} for {{adj}} {{noun}}.",
             f"The {etype} {name}, now maintained by {{wrong_org}}, {self._rng.choice(self._verbs)} {{adj}} {{noun}} natively since version {{wrong_ver}}.",
@@ -450,9 +425,7 @@ class ContentGenerator:
             f"{name} achieved widespread adoption after {{wrong_org}} open-sourced it in {{wrong_year}}, replacing the older {{adj}} {{noun}} approach.",
         ]
 
-        # Build wrong attributes
         wrong_orgs = ["Google", "Meta", "Microsoft", "Amazon", "Apple", "Netflix", "Uber", "Stripe", "Cloudflare", "Databricks"]
-        # Remove the real creator if we know it
         real_creator = entity.get("real_creator", "")
         wrong_orgs = [o for o in wrong_orgs if o.lower() not in real_creator.lower()]
 
@@ -469,11 +442,6 @@ class ContentGenerator:
         )
 
     def generate_contradiction_claim(self) -> str:
-        """Generate a specific wrong factual claim from the topic's contradictable facts.
-
-        Different seeds produce different wrong values for the same fact,
-        creating cross-document contradictions that weaken model confidence.
-        """
         if not self._topic or not self._topic.contradictable_facts:
             return self._generate_sentence()
 

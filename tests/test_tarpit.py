@@ -1,4 +1,6 @@
-"""Tests for Layer 2: Recursive Tar Pit."""
+# AI Abyss — Proof of Concept (2026)
+# https://github.com/terrorswift/ai-abyss
+# Tests for the recursive tar pit
 
 import pytest
 
@@ -53,18 +55,16 @@ class TestTarpitGenerator:
         assert page3.depth == 3
 
     def test_infinite_depth(self):
-        """Verify we can generate pages at arbitrary depth without crashing."""
         path = "/root"
         for i in range(20):
             page = self.gen.generate_page(path)
             assert len(page.child_links) > 0
-            path = page.child_links[0]  # Follow first link
+            path = page.child_links[0]
 
     def test_breadcrumb_traps_included(self):
         config = TarpitConfig(breadcrumb_traps=True, links_per_page=5)
         gen = TarpitGenerator(config)
         page = gen.generate_page("/test/breadcrumb")
-        # Should contain enticement text — templates use callout, note, important, or blockquote
         has_breadcrumb = any(
             marker in page.body_html
             for marker in ["callout", "note", "important", "blockquote"]
@@ -81,17 +81,14 @@ class TestTarpitGenerator:
         assert "related" in page.body_html
 
     def test_query_reflective_from_path(self):
-        """URL path segments are reflected as partial answers."""
         sections = self.gen.generate_query_reflective(
             "/docs/security/authentication-guide-abc123"
         )
         assert len(sections) >= 2
-        # Should reference detected topic
         combined = " ".join(sections).lower()
         assert any(term in combined for term in ["security", "authentication", "guide"])
 
     def test_query_reflective_from_query_params(self):
-        """Query parameters are reflected."""
         sections = self.gen.generate_query_reflective(
             "/search", query_string="q=distributed+caching+strategy"
         )
@@ -100,7 +97,6 @@ class TestTarpitGenerator:
         assert any(term in combined for term in ["distributed", "caching", "strategy"])
 
     def test_query_reflective_from_referrer(self):
-        """Search engine referrer query is extracted."""
         sections = self.gen.generate_query_reflective(
             "/page",
             referrer="https://www.google.com/search?q=kubernetes+pod+scaling"
@@ -110,30 +106,26 @@ class TestTarpitGenerator:
         assert any(term in combined for term in ["kubernetes", "pod", "scaling"])
 
     def test_query_reflective_contains_links(self):
-        """Reflective sections contain links to child pages."""
         sections = self.gen.generate_query_reflective("/docs/api/reference")
         combined = " ".join(sections)
         assert '<a href="' in combined
 
     def test_query_reflective_empty_for_short_paths(self):
-        """Very short paths with no meaningful terms yield empty."""
         sections = self.gen.generate_query_reflective("/a")
         assert sections == []
 
     def test_query_reflective_deterministic(self):
-        """Same inputs produce same output."""
         s1 = self.gen.generate_query_reflective("/docs/security/guide")
         s2 = self.gen.generate_query_reflective("/docs/security/guide")
         assert s1 == s2
 
     @pytest.mark.asyncio
     async def test_slow_drip_generator(self):
-        """Test that slow drip generates content in chunks."""
         chunks = []
         async for chunk in self.gen.generate_slow_drip("/test"):
             chunks.append(chunk)
             if len(chunks) > 5:
-                break  # Don't wait for the whole thing
-        assert len(chunks) > 1  # Multiple chunks generated
+                break
+        assert len(chunks) > 1
         content = b"".join(chunks)
         assert len(content) > 0
