@@ -1,62 +1,17 @@
 {
-  "_comment": "Known TLS fingerprints for bot detection. JA3 hashes for common HTTP libraries vs real browsers. Passed via X-JA3-Hash header from nginx/HAProxy.",
   "known_bots": [
-    {
-      "ja3": "b32309a26951912be7dba376398abc3b",
-      "description": "Python requests (urllib3/OpenSSL)",
-      "confidence": 0.8
-    },
-    {
-      "ja3": "3b5074b1b5d032e5620f69f9f700ff0e",
-      "description": "Go net/http default client",
-      "confidence": 0.85
-    },
-    {
-      "ja3": "36f7277af969a6947a61ae0b815907a1",
-      "description": "Java HttpClient (JDK 11+)",
-      "confidence": 0.8
-    },
-    {
-      "ja3": "1138de370e523e824bbfc608cc5ab72f",
-      "description": "Node.js fetch/undici",
-      "confidence": 0.75
-    },
-    {
-      "ja3": "2bab0332255a151e1a0d498c7c1f580a",
-      "description": "curl/libcurl default",
-      "confidence": 0.5
-    },
-    {
-      "ja3": "eb1d94daa7e0344597e756a1fb6e7054",
-      "description": "Scrapy/Twisted",
-      "confidence": 0.85
-    },
-    {
-      "ja3": "473cd7cb9faa642487833865d516e578",
-      "description": "Rust reqwest",
-      "confidence": 0.75
-    }
+    { "ja3": "b32309a26951912be7dba376398abc3b", "description": "Python requests (urllib3/OpenSSL)", "confidence": 0.8 },
+    { "ja3": "3b5074b1b5d032e5620f69f9f700ff0e", "description": "Go net/http default client", "confidence": 0.85 },
+    { "ja3": "36f7277af969a6947a61ae0b815907a1", "description": "Java HttpClient (JDK 11+)", "confidence": 0.8 },
+    { "ja3": "1138de370e523e824bbfc608cc5ab72f", "description": "Node.js fetch/undici", "confidence": 0.75 },
+    { "ja3": "2bab0332255a151e1a0d498c7c1f580a", "description": "curl/libcurl default", "confidence": 0.5 },
+    { "ja3": "eb1d94daa7e0344597e756a1fb6e7054", "description": "Scrapy/Twisted", "confidence": 0.85 },
+    { "ja3": "473cd7cb9faa642487833865d516e578", "description": "Rust reqwest", "confidence": 0.75 }
   ],
   "known_browsers": [
-    {
-      "ja3": "b20b44b18b853ef29ab773e921b03422",
-      "description": "Chrome 120+ (Windows)",
-      "confidence": 0.9
-    },
-    {
-      "ja3": "cd08e31494f9531f560d64c695473da9",
-      "description": "Chrome 120+ (macOS)",
-      "confidence": 0.9
-    },
-    {
-      "ja3": "579ccef312d18482fc42e2b822ca2430",
-      "description": "Firefox 120+ (all platforms)",
-      "confidence": 0.9
-    },
-    {
-      "ja3": "773906b0efdefa24a7f2b8eb6985bf37",
-      "description": "Safari 17+ (macOS/iOS)",
-      "confidence": 0.9
-    }
+    { "ja3": "b20b44b18b853ef29ab773e921b03422", "description": "Chrome 120+ (Windows)", "confidence": 0.9 },
+    { "ja3": "cd08e31494f9531f560d64c695473da9", "description": "Chrome 120+ (macOS)", "confidence": 0.9 },
+    { "ja3": "579ccef312d18482fc42e2b822ca2430", "description": "Firefox 120+ (all platforms)", "confidence": 0.9 },
+    { "ja3": "773906b0efdefa24a7f2b8eb6985bf37", "description": "Safari 17+ (macOS/iOS)", "confidence": 0.9 }
   ]
 }

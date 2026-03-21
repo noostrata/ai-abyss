@@ -1,139 +1,31 @@
 {
   "known_ai_crawlers": [
-    {
-      "name": "GPTBot",
-      "pattern": "GPTBot",
-      "org": "OpenAI"
-    },
-    {
-      "name": "ChatGPT-User",
-      "pattern": "ChatGPT-User",
-      "org": "OpenAI"
-    },
-    {
-      "name": "OAI-SearchBot",
-      "pattern": "OAI-SearchBot",
-      "org": "OpenAI"
-    },
-    {
-      "name": "Google-Extended",
-      "pattern": "Google-Extended",
-      "org": "Google"
-    },
-    {
-      "name": "Googlebot-AI",
-      "pattern": "Googlebot-AI",
-      "org": "Google"
-    },
-    {
-      "name": "anthropic-ai",
-      "pattern": "anthropic-ai",
-      "org": "Anthropic"
-    },
-    {
-      "name": "ClaudeBot",
-      "pattern": "ClaudeBot",
-      "org": "Anthropic"
-    },
-    {
-      "name": "Claude-Web",
-      "pattern": "Claude-Web",
-      "org": "Anthropic"
-    },
-    {
-      "name": "CCBot",
-      "pattern": "CCBot",
-      "org": "Common Crawl"
-    },
-    {
-      "name": "Meta-ExternalAgent",
-      "pattern": "Meta-ExternalAgent",
-      "org": "Meta"
-    },
-    {
-      "name": "Meta-ExternalFetcher",
-      "pattern": "Meta-ExternalFetcher",
-      "org": "Meta"
-    },
-    {
-      "name": "FacebookBot",
-      "pattern": "FacebookBot",
-      "org": "Meta"
-    },
-    {
-      "name": "Bytespider",
-      "pattern": "Bytespider",
-      "org": "ByteDance"
-    },
-    {
-      "name": "Applebot-Extended",
-      "pattern": "Applebot-Extended",
-      "org": "Apple"
-    },
-    {
-      "name": "cohere-ai",
-      "pattern": "cohere-ai",
-      "org": "Cohere"
-    },
-    {
-      "name": "PerplexityBot",
-      "pattern": "PerplexityBot",
-      "org": "Perplexity"
-    },
-    {
-      "name": "YouBot",
-      "pattern": "YouBot",
-      "org": "You.com"
-    },
-    {
-      "name": "Diffbot",
-      "pattern": "Diffbot",
-      "org": "Diffbot"
-    },
-    {
-      "name": "Omgilibot",
-      "pattern": "Omgilibot",
-      "org": "Omgili"
-    },
-    {
-      "name": "Amazonbot",
-      "pattern": "Amazonbot",
-      "org": "Amazon"
-    },
-    {
-      "name": "AI2Bot",
-      "pattern": "AI2Bot",
-      "org": "Allen AI"
-    },
-    {
-      "name": "Scrapy",
-      "pattern": "Scrapy",
-      "org": "generic"
-    },
-    {
-      "name": "python-requests",
-      "pattern": "python-requests",
-      "org": "generic"
-    },
-    {
-      "name": "Go-http-client",
-      "pattern": "Go-http-client",
-      "org": "generic"
-    },
-    {
-      "name": "axios",
-      "pattern": "axios",
-      "org": "generic"
-    },
-    {
-      "name": "node-fetch",
-      "pattern": "node-fetch",
-      "org": "generic"
-    },
-    {
-      "name": "Java/",
-      "pattern": "Java/",
-      "org": "generic"
-    }
+    { "name": "GPTBot", "org": "OpenAI" },
+    { "name": "ChatGPT-User", "org": "OpenAI" },
+    { "name": "OAI-SearchBot", "org": "OpenAI" },
+    { "name": "Google-Extended", "org": "Google" },
+    { "name": "Googlebot-AI", "org": "Google" },
+    { "name": "anthropic-ai", "org": "Anthropic" },
+    { "name": "ClaudeBot", "org": "Anthropic" },
+    { "name": "Claude-Web", "org": "Anthropic" },
+    { "name": "CCBot", "org": "Common Crawl" },
+    { "name": "Meta-ExternalAgent", "org": "Meta" },
+    { "name": "Meta-ExternalFetcher", "org": "Meta" },
+    { "name": "FacebookBot", "org": "Meta" },
+    { "name": "Bytespider", "org": "ByteDance" },
+    { "name": "Applebot-Extended", "org": "Apple" },
+    { "name": "cohere-ai", "org": "Cohere" },
+    { "name": "PerplexityBot", "org": "Perplexity" },
+    { "name": "YouBot", "org": "You.com" },
+    { "name": "Diffbot", "org": "Diffbot" },
+    { "name": "Omgilibot", "org": "Omgili" },
+    { "name": "Amazonbot", "org": "Amazon" },
+    { "name": "AI2Bot", "org": "Allen AI" },
+    { "name": "Scrapy", "org": "generic" },
+    { "name": "python-requests", "org": "generic" },
+    { "name": "Go-http-client", "org": "generic" },
+    { "name": "axios", "org": "generic" },
+    { "name": "node-fetch", "org": "generic" },
+    { "name": "Java/", "org": "generic" }
   ]
 }

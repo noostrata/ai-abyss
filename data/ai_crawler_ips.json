@@ -1,77 +1,20 @@
 {
-  "_comment": "Known AI company IP ranges. Update periodically. Sources: official documentation, ASN lookups.",
   "ranges": [
-    {
-      "cidr": "20.15.240.0/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    },
-    {
-      "cidr": "20.15.240.64/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    },
-    {
-      "cidr": "20.15.240.80/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    },
-    {
-      "cidr": "20.15.240.96/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    },
-    {
-      "cidr": "20.15.240.176/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    },
-    {
-      "cidr": "52.230.152.0/24",
-      "org": "OpenAI",
-      "source": "OpenAI GPTBot"
-    },
-    {
-      "cidr": "23.98.142.176/28",
-      "org": "OpenAI",
-      "source": "OpenAI documentation"
-    }
+    { "cidr": "20.15.240.0/28", "org": "OpenAI" },
+    { "cidr": "20.15.240.64/28", "org": "OpenAI" },
+    { "cidr": "20.15.240.80/28", "org": "OpenAI" },
+    { "cidr": "20.15.240.96/28", "org": "OpenAI" },
+    { "cidr": "20.15.240.176/28", "org": "OpenAI" },
+    { "cidr": "52.230.152.0/24", "org": "OpenAI" },
+    { "cidr": "23.98.142.176/28", "org": "OpenAI" }
   ],
   "asns": [
-    {
-      "asn": "AS396982",
-      "org": "Google",
-      "note": "Google LLC - used by various Google crawlers"
-    },
-    {
-      "asn": "AS15169",
-      "org": "Google",
-      "note": "Google LLC"
-    },
-    {
-      "asn": "AS8075",
-      "org": "Microsoft",
-      "note": "Microsoft Corporation - hosts OpenAI infrastructure"
-    },
-    {
-      "asn": "AS32934",
-      "org": "Meta",
-      "note": "Facebook/Meta"
-    },
-    {
-      "asn": "AS13414",
-      "org": "Twitter/X",
-      "note": "Twitter Inc."
-    },
-    {
-      "asn": "AS14618",
-      "org": "Amazon",
-      "note": "Amazon.com Inc. - AWS"
-    },
-    {
-      "asn": "AS16509",
-      "org": "Amazon",
-      "note": "Amazon.com Inc. - AWS"
-    }
+    { "asn": "AS396982", "org": "Google" },
+    { "asn": "AS15169", "org": "Google" },
+    { "asn": "AS8075", "org": "Microsoft" },
+    { "asn": "AS32934", "org": "Meta" },
+    { "asn": "AS13414", "org": "Twitter/X" },
+    { "asn": "AS14618", "org": "Amazon" },
+    { "asn": "AS16509", "org": "Amazon" }
   ]
 }

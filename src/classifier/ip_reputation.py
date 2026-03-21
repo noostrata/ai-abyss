@@ -47,7 +47,7 @@ class IPReputationChecker:
         for entry in data.get("ranges", []):
             try:
                 network = ipaddress.ip_network(entry["cidr"], strict=False)
-                self._known_ranges.append((network, entry["org"], entry.get("source", "")))
+                self._known_ranges.append((network, entry["org"], "IP range match"))
             except ValueError:
                 continue
         for entry in data.get("asns", []):

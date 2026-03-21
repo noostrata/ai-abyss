@@ -66,7 +66,11 @@ echo "==> Installing nginx"
 make install
 
 echo "==> Verifying installation"
-nginx -V
+if ! nginx -V 2>&1 | grep -q "ngx_ssl_fingerprint_module"; then
+    echo "ERROR: nginx installed but fingerprint module not detected." >&2
+    echo "       Check the build output above for errors." >&2
+    exit 1
+fi
 
 echo ""
 echo "==> Done. nginx installed with JA3/JA4 fingerprint support."

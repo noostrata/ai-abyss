@@ -207,9 +207,9 @@ class ClassificationEngine:
         ua_lower = ua.lower()
 
         # Check against known AI crawler patterns
-        for pattern in self._ua_patterns:
-            if re.search(pattern["pattern"], ua, re.IGNORECASE):
-                return 0.9, f"matched: {pattern['name']} ({pattern['org']})"
+        for entry in self._ua_patterns:
+            if re.search(entry["name"], ua, re.IGNORECASE):
+                return 0.9, f"matched: {entry['name']} ({entry['org']})"
 
         # Generic bot indicators
         bot_keywords = ["bot", "crawl", "spider", "scrape", "fetch", "http"]
