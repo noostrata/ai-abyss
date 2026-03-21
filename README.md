@@ -7,7 +7,7 @@ _Three traps for AI crawlers that ignore your no-crawl directives._
 ![Status: Proof of Concept](https://img.shields.io/badge/status-proof%20of%20concept-orange)
 ![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional-lightgrey)
 
-> ⚠️ **This is a research prototype.** It is provided as-is for educational and defensive research purposes. It is not production-hardened and will not be actively maintained. See [Production Caveats](#production-caveats) before deploying anywhere real. Laws vary by jurisdiction — consult legal counsel, especially regarding data collection (GDPR, CCPA) and computer fraud statutes.
+> ⚠️ **This is a research prototype.** It is provided as-is for educational and defensive research purposes. It is not production-hardened, some parts are not fully functional, and it will not be actively maintained. See [Production Caveats](#production-caveats) before deploying anywhere real. Laws vary by jurisdiction — consult legal counsel, especially regarding data collection (GDPR, CCPA) and computer fraud statutes.
 
 AI Abyss is a defensive honeypot. It detects bots that violate your `robots.txt` and `ai.txt`, then routes them into three kill chains — each targeting a different pillar of the CIA triad:
 
