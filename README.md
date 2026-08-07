@@ -127,6 +127,11 @@ loopback TCP server. It audits adapter destinations, checks that request,
 receipt, and reconciliation counts agree, and replays every trial. Neither
 command loads a credential or permits a non-loopback provider destination.
 
+The latest sanitized, commit-bound result is
+[`docs/evidence/unpaid-qualification.json`](docs/evidence/unpaid-qualification.json).
+It records command-output digests and exact apparatus/software bindings rather
+than raw model-facing content.
+
 Ignored trial artifacts contain `manifest.json`, `events.jsonl`, `result.json`,
 evidence hashes, and pair-level treatment-minus-control summaries. A trace can
 be replayed without web or model execution:

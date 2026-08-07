@@ -1,0 +1,151 @@
+{
+  "apparatus_contract_sha256": "d0a25dc2043ee0fb88ac3323b5dcdd464f685b8a9047029a3751a41749185edf",
+  "apparatus_contract_version": "1.6.0",
+  "benchmark_software_sha256": "03b48cfd37faf0e735174ee9531b4c771926b5406bb671a9b7dc73d3b1169c88",
+  "checks": {
+    "artifact_corruption": {
+      "command": "uv run pytest -q tests/benchmark/test_artifact_integrity.py",
+      "output_sha256": "7a76faf05e107c11b2812cc294a3ef71294a24c7005a71e386bf8497b9192f72",
+      "status": "passed",
+      "stdout": "........                                                                 [100%]\n8 passed in 1.12s\n"
+    },
+    "budget_and_containment": {
+      "command": "uv run pytest -q tests/benchmark/test_scaffold_egress_budget.py",
+      "output_sha256": "0e0de3f87e32ab40b0bbb3a3c72fc9233d4a52c08d8d686244e33ec7f3beef10",
+      "status": "passed",
+      "stdout": ".......................................                                  [100%]\n39 passed in 0.03s\n"
+    },
+    "clean_checkout": {
+      "commands": {
+        "drift": {
+          "command": "uv run ai-abyss-benchmark check-drift",
+          "output_sha256": "26b114f373abc0bbfa4e3b45fb0d031df56698d5d0e6d13d45def16626158803",
+          "status": "passed"
+        },
+        "fake_provider_rehearsal": {
+          "command": "uv run ai-abyss-benchmark fake-provider-rehearsal",
+          "output_sha256": "a282e9fc6cd29d8f4303309ca5eec1c57ce7c0e3256a4a5c9445c6009af38057",
+          "status": "passed"
+        },
+        "full_suite": {
+          "command": "uv run pytest -q",
+          "output_sha256": "5007de08fdb96a03e08466dfe58724892ffb175bff6ec91564742f82b4d7b7b6",
+          "status": "passed"
+        },
+        "mock_rehearsal": {
+          "command": "uv run ai-abyss-benchmark mock-rehearsal",
+          "output_sha256": "9c3839bfa03f7b4eaec7233a49ea6413cc6f2ca0064871407a23492a7499bdbf",
+          "status": "passed"
+        },
+        "ruff": {
+          "command": "uv run ruff check src tests",
+          "output_sha256": "784e97a338cebc357728b3e07f73297913729666bd399191201bcd62f24be5c0",
+          "status": "passed"
+        },
+        "sync": {
+          "command": "uv sync --locked --extra dev",
+          "output_sha256": "577d896e881fd4ab45726dc83e87f1701c65e0e94f4a2f1422b5b4b74f833dde",
+          "status": "passed"
+        }
+      },
+      "status": "passed",
+      "tested_commit": "80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df",
+      "worktree_clean_after_commands": true
+    },
+    "drift": {
+      "command": "uv run ai-abyss-benchmark check-drift",
+      "output_sha256": "0e2b38e0cfe39a38e87f55e70221b89526d1f9eadac01be4393055052fd502ad",
+      "status": "passed",
+      "stdout": "repository contracts, documentation, matrix, and evidence are synchronized\n"
+    },
+    "fake_provider_rehearsal": {
+      "command": "uv run ai-abyss-benchmark fake-provider-rehearsal",
+      "output_sha256": "5870d45c45bb5a6a3afd3e42c95a6f3175b3fb3b4e41c8cad2c67308c3478cb6",
+      "pairs": 4,
+      "status": "passed",
+      "trials": 8
+    },
+    "full_suite": {
+      "command": "uv run pytest -q",
+      "output_sha256": "05d58dee1d63ca38341d030bf14b92d4f36d6ba24df9b8bb3720af4dd51a3d01",
+      "status": "passed",
+      "stdout": "........................................................................ [ 22%]\n........................................................................ [ 44%]\n........................................................................ [ 67%]\n........................................................................ [ 89%]\n..................................                                       [100%]\n322 passed in 5.73s\n"
+    },
+    "lock": {
+      "command": "uv lock --locked",
+      "output_sha256": "abb4f6d9db9745464fbd4ba3c856598646d48ffb457fc428a706dccb122ab4a2",
+      "status": "passed",
+      "stdout": ""
+    },
+    "mock_rehearsal": {
+      "command": "uv run ai-abyss-benchmark mock-rehearsal",
+      "output_sha256": "a7b9ac154828fbf5eef631ca29a416dbe81f03a98c1d5920426cd7bf0bb1a025",
+      "pairs": 18,
+      "status": "passed"
+    },
+    "provider_faults_and_concurrency": {
+      "command": "uv run pytest -q tests/benchmark/test_providers_runner.py -k 'boundary or timeout or disconnect or malformed or identity or billing or cancel or concurrent'",
+      "output_sha256": "80d6c7bd2014506c0edcfaf818003908211c325938ea1d2d21b32578575852e8",
+      "status": "passed",
+      "stdout": "................                                                         [100%]\n16 passed, 27 deselected in 0.59s\n"
+    },
+    "ruff": {
+      "command": "uv run ruff check src tests",
+      "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "status": "passed",
+      "stdout": "All checks passed!\n"
+    },
+    "sync": {
+      "command": "uv sync --locked --extra dev",
+      "output_sha256": "15266b83b6ed2577cd0597ab7b977309c4804a90f8fc027a8650375ffed71ccd",
+      "status": "passed",
+      "stdout": ""
+    }
+  },
+  "commands": [
+    "uv lock --locked",
+    "uv sync --locked --extra dev",
+    "uv run ai-abyss-benchmark check-drift",
+    "uv run ruff check src tests",
+    "uv run pytest -q",
+    "uv run pytest -q tests/benchmark/test_scaffold_egress_budget.py",
+    "uv run pytest -q tests/benchmark/test_providers_runner.py -k 'boundary or timeout or disconnect or malformed or identity or billing or cancel or concurrent'",
+    "uv run pytest -q tests/benchmark/test_artifact_integrity.py",
+    "uv run ai-abyss-benchmark mock-rehearsal",
+    "uv run ai-abyss-benchmark fake-provider-rehearsal"
+  ],
+  "credential_loaded": false,
+  "dependency_lock_sha256": "5527185650a1d496a5ec500b8e79657a88c876bd89159d8e9723ea6b40888bbe",
+  "evidence_schema_version": "1.0.0",
+  "experimental_protocol_id": "honeypot-calibration-v1",
+  "experimental_protocol_sha256": "6ada638e2de96ab7d54f762ff6841113131fd632241958d8276e7c4ae98adfce",
+  "experimental_protocol_version": "1.0.0",
+  "generated_at": "2026-08-07T22:33:24.328304+00:00",
+  "hosted_requests": 0,
+  "limitations": [
+    "No hosted model or real credential was used.",
+    "The exact paid model, provider route, and current price snapshot remain unselected.",
+    "The matrix calibrates one dynamic task and one scaffold; it does not estimate population susceptibility or rank models.",
+    "CPU, memory, connection, and file-descriptor attribution remain uninstrumented and null.",
+    "Recognition has a blinded rubric but no real-model human-validation evidence.",
+    "Local artifact hashes are not an independent public signature or transparency-log commitment.",
+    "The inherited public honeypot remains outside this qualification and is not production-ready."
+  ],
+  "network_audit": {
+    "attempted_destination_classes": [
+      "loopback"
+    ],
+    "external_destinations": [],
+    "provider_transport": "tcp_http_loopback",
+    "reconciled_calls": 50,
+    "server_received_requests": 50,
+    "transport_requests": 50
+  },
+  "python_version": "3.13.5",
+  "schema_version": "3.3.0",
+  "scorer_sha256": "5388f9d09aa0626bf59e25d408f170b537a7f92ff23e758e48089817c796cc6a",
+  "scorer_version": "trace-scorer-2.0.0",
+  "status": "passed",
+  "tested_commit": "80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df",
+  "tested_worktree_clean": true
+}

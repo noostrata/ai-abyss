@@ -13,8 +13,8 @@ or approval of an earlier plan does not authorize payment.
 
 | Item | Bound value |
 |---|---|
-| Unpaid evidence | `docs/evidence/unpaid-qualification.json` after Phase 7 |
-| Tested commit | Read `tested_commit` from that evidence report |
+| Unpaid evidence | `docs/evidence/unpaid-qualification.json` |
+| Tested source commit | `80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df` |
 | Required run commit | `UNBOUND`; must be exactly clean and equal to authorization |
 | Schema | `3.3.0` |
 | Apparatus | `1.6.0`; digest is bound in `protocol/calibration-v1.json` |

@@ -33,7 +33,7 @@ model susceptibility.
 | 4: evidence and containment | Implemented and corruption/failure tested; public signing deferred |
 | 5: scientific calibration design | Implemented and locally rehearsed; no real-model outcomes |
 | 6: documentation and drift control | Implemented; enforced by `check-drift` and CI |
-| 7: unpaid qualification | Pending a clean commit-bound qualification report |
+| 7: unpaid qualification | Passed on clean source commit `80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df`; sanitized report tracked |
 | 8: paid calibration | Blocked pending a complete, explicitly approved packet |
 
 The implementation should proceed through explicit gates:
@@ -666,6 +666,12 @@ Afterward determine:
 **Purpose:** demonstrate the entire paid-shaped system without contacting a
 hosted model.
 
+**Status:** complete for the unpaid apparatus. The sanitized report at
+`docs/evidence/unpaid-qualification.json` binds the checks to clean source
+commit `80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df`, the dependency lock, apparatus,
+protocol, scorer, and benchmark software digests. The report-bearing commit
+changes documentation only; CI repeats the same unpaid gates on every commit.
+
 ### Qualification sequence
 
 1. Run the locked full test suite and Ruff.
@@ -695,6 +701,11 @@ At the end of unpaid qualification, stop. Prepare a review packet containing:
 - expected artifacts;
 - unresolved limitations;
 - rollback and credential-removal procedure.
+
+The draft packet is `docs/paid-pilot-authorization-packet.md`. It deliberately
+leaves the exact model, upstream route, current price snapshot, provider-side
+limit, credential reference, external-isolation evidence, kill-switch ID, and
+run commit unbound. Therefore it is not an authorization.
 
 ## Hard cutoff before paid execution
 

@@ -32,7 +32,7 @@ jobs:
         run: uv run ruff check src tests
 
       - name: Check contracts, protocol, matrix, and documentation drift
-        run: uv run ai-abyss-benchmark check-drift
+        run: uv run ai-abyss-benchmark check-drift --require-evidence
 
       - name: Run complete test suite
         run: uv run pytest -q
