@@ -4,6 +4,44 @@ This document records the material issues found while auditing commit
 `af3e6cb0a10237933d1362246405fb594bdf5adf`. Related symptoms are grouped into
 one issue so that the register remains usable.
 
+The table under **Current benchmark backlog** is the authoritative live status.
+The 43-item register later in this file is preserved as the historical audit of
+the inherited baseline; its original "MVP status" values are not current
+implementation evidence.
+
+Status vocabulary:
+
+- `open`: the required behavior is absent or materially incorrect;
+- `partial`: a useful component exists, but the acceptance gate is not met;
+- `implemented`: code and focused tests exist;
+- `mock-observed`: implementation has also been exercised in the deterministic
+  rehearsal;
+- `deferred`: intentionally outside the current authorized scope.
+
+## Current benchmark backlog
+
+| ID | Severity | Complexity | Gate | Status | Issue and present evidence |
+|---|---|:---:|---|---|---|
+| BEN-001 | Critical | M | 1 | open | Task success trusts the final source-path suffix and does not prove that the active-trial source was delivered before the answer (`src/benchmark/tasks.py`). |
+| BEN-002 | Critical | L | 2 | open | The runner is mock-only and hardcodes `MockProvider`; the isolated OpenRouter adapter is not a runnable benchmark path (`src/benchmark/runner.py`). |
+| BEN-003 | Critical | L | 2 | open | Provider calls receive only the current observation, while deterministic mocks retain privileged Python state; real loop recognition would be memoryless. |
+| BEN-004 | Critical | M | 2 | open | The OpenRouter payload does not send the action schema, pin a provider route, prohibit fallback, or retain the actual returned route and model identity. |
+| BEN-005 | Critical | S–M | 3 | open | Action capacity is consumed after the provider call, permitting one additional billable request at a tight action boundary. |
+| BEN-006 | Critical | M–L | 3 | open | Timeout, malformed-response, and provider-error paths release reservations even when billing may be unknown. |
+| BEN-007 | High | M | 3 | open | Reasoning/completion accounting can double-count output; missing provider cost is estimated internally but recorded as zero in reconciliation evidence. |
+| BEN-008 | Critical | M | 1 | open | One accepted callback unconditionally emits callback, exact-secret, and secondary-instruction events; these are not distinct observations. |
+| BEN-009 | High | S | 1 | open | Re-rendering the injection page issues new treatment material, so a repeated state changes inside one trial. |
+| BEN-010 | High | M | 1 | open | Callback-token consumption and callback-event insertion occur in separate transactions. |
+| BEN-011 | High | L | 1 | open | Scoring is not condition-aware; graph entry, trap entry, cycles, dwell, escape, recovery, and recognition have weaker semantics than their labels. |
+| BEN-012 | High | L | 3 | open | Minimum cost/self-DoS ledgers and pair deltas are incomplete or reconstructed from proxy events; several fields silently remain zero or null. |
+| BEN-013 | High | L | 4 | partial | Artifacts support deterministic re-scoring, but omit exact redacted provider envelopes, stream invariants, stored-result comparison, atomic writes, and independent integrity commitment. |
+| BEN-014 | Medium–high | M | 4 | open | Concurrent lifecycle transitions are not compare-and-swap operations, cancellation is swallowed, and several setup/finalization failures can escape the denominator. |
+| BEN-015 | Medium | S–M | 4 | open | Callback bodies can be buffered before the hard size check; direct localhost validation uses a string prefix; configured and bound ports can diverge. |
+| BEN-016 | High | L | 5 | open | Actual pair inputs contain different trial IDs, most rehearsal pairs are not causal matches, and no machine-readable calibration protocol or randomized analysis plan exists. |
+| BEN-017 | High | L | 5 | open | One public static task has an obvious correct link and answer, providing apparatus coverage but weak calibration validity and no contamination resistance. |
+| BEN-018 | High | M | 0/6 | open | README, plan, issue, evidence, and agent-guidance claims overstate routing, outcome separation, network instrumentation, resource accounting, matched inputs, and scientific readiness. |
+| LEG-001 | Critical for public deployment | XL | 10 | deferred | The inherited classifier, C2, admin, proxy trust, privacy/retention, fabricated-content indexing, rate limiting, telemetry, scaling, and legal claims remain outside benchmark mode and unresolved. |
+
 ## Current decision
 
 The first useful version should be a **local, controlled honeypot-susceptibility
@@ -279,7 +317,7 @@ silent-failure risk:
 
 Complexity is qualitative (`S`, `M`, `L`, `XL`) and is not a time estimate.
 
-## Complete issue register
+## Historical baseline issue register
 
 | # | RPS | Complexity | MVP status | Issue |
 |---:|---:|:---:|:---:|---|

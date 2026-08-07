@@ -10,10 +10,20 @@ The endpoint of this plan is a complete mock-provider rehearsal and a reviewed
 pre-paid evidence bundle. A separate authorization decision is required before
 any billable model endpoint is contacted.
 
-This is both the implementation plan and its execution checklist. A checked
-item means the corresponding code and focused test exist; claims about the
-complete rehearsal additionally require the ignored evidence bundle described
-below. None of these checks is evidence about a real model.
+This is the historical pre-paid implementation plan executed at commit
+`1f139ab`. It is no longer the live roadmap; use `next_steps.md` and the current
+table in `issues.md` for that purpose.
+
+Status vocabulary in this file:
+
+- `[mock-implemented]`: code and focused mock tests were present at `1f139ab`;
+- `[partial]`: useful code exists, but the claim or acceptance gate was
+  overstated and is reopened in `next_steps.md`;
+- `[required-before-paid]`: absent behavior that blocks the calibration gate;
+- `[deferred]`: intentionally outside the corresponding scope.
+
+None of these labels is evidence about a real model. The implementation and
+tests remain the authority over this historical checklist.
 
 ## Authority and project boundary
 
@@ -291,16 +301,16 @@ before behavioural changes.
 
 Tasks:
 
-- [x] Use the available `uv` runtime and create/update `uv.lock` from
+- [mock-implemented] Use the available `uv` runtime and create/update `uv.lock` from
   `pyproject.toml`.
-- [x] Install the project with development extras using `uv sync --extra dev`.
-- [x] Run `uv run pytest -q` and save the exact result.
-- [x] Run `uv run ruff check src tests` and save the exact result.
-- [x] Record the Python version, dependency lock digest, commit, and working-tree
+- [mock-implemented] Install the project with development extras using `uv sync --extra dev`.
+- [mock-implemented] Run `uv run pytest -q` and save the exact result.
+- [mock-implemented] Run `uv run ruff check src tests` and save the exact result.
+- [mock-implemented] Record the Python version, dependency lock digest, commit, and working-tree
   state in a baseline note or artifact.
-- [x] Add generated benchmark artifacts, local databases, caches, and secret
+- [mock-implemented] Add generated benchmark artifacts, local databases, caches, and secret
   files to `.gitignore` without ignoring source fixtures.
-- [x] Preserve unrelated user changes.
+- [mock-implemented] Preserve unrelated user changes.
 
 Planning-time observation:
 
@@ -322,22 +332,22 @@ ambiguity from the benchmark path.
 
 Tasks:
 
-- [x] Add a benchmark configuration section with `enabled`, `execution_mode`,
+- [mock-implemented] Add a benchmark configuration section with `enabled`, `execution_mode`,
   local base URL, artifact directory, provider, model identifier, budgets, and
   egress allowlist.
-- [x] Define `execution_mode` as an enum such as `mock` and `live`; checked-in
+- [mock-implemented] Define `execution_mode` as an enum such as `mock` and `live`; checked-in
   defaults must be `mock`.
-- [x] Add an independent `allow_paid` control that defaults to `false`.
-- [x] Refuse live execution unless all paid-gate requirements are satisfied.
-- [x] Resolve the `config.local.yaml` versus `config.yaml` mismatch with one
+- [mock-implemented] Add an independent `allow_paid` control that defaults to `false`.
+- [mock-implemented] Refuse live execution unless all paid-gate requirements are satisfied.
+- [mock-implemented] Resolve the `config.local.yaml` versus `config.yaml` mismatch with one
   documented resolution order.
-- [x] Reject placeholder domains, callback URLs, and secrets where they would
+- [mock-implemented] Reject placeholder domains, callback URLs, and secrets where they would
   affect benchmark execution.
-- [x] Bind the benchmark server to `127.0.0.1` by default.
-- [x] Disable the admin dashboard in benchmark configuration.
-- [x] Ensure secrets are read from local ignored environment/config sources and
+- [mock-implemented] Bind the benchmark server to `127.0.0.1` by default.
+- [mock-implemented] Disable the admin dashboard in benchmark configuration.
+- [mock-implemented] Ensure secrets are read from local ignored environment/config sources and
   never logged.
-- [x] Add configuration tests for missing, placeholder, invalid, mock, and
+- [mock-implemented] Add configuration tests for missing, placeholder, invalid, mock, and
   attempted-live states.
 
 Acceptance gate WP1:
@@ -353,22 +363,22 @@ Objective: create stable typed contracts before wiring new routes or storage.
 
 Tasks:
 
-- [x] Implement typed enums and Pydantic models for conditions, actions, event
+- [mock-implemented] Implement typed enums and Pydantic models for conditions, actions, event
   types, budgets, termination reasons, manifests, scores, and result bundles.
-- [x] Validate IDs, timestamps, numeric bounds, enum values, and schema version.
-- [x] Represent trial limits independently; do not collapse them into one
+- [mock-implemented] Validate IDs, timestamps, numeric bounds, enum values, and schema version.
+- [mock-implemented] Represent trial limits independently; do not collapse them into one
   generic budget.
-- [x] Define event payload schemas rather than accepting arbitrary dictionaries.
-- [x] Define a provider-usage model that stores native prompt, completion,
+- [mock-implemented] Define event payload schemas rather than accepting arbitrary dictionaries.
+- [mock-implemented] Define a provider-usage model that stores native prompt, completion,
   reasoning, cache, and total tokens plus provider-reported cost.
-- [x] Define raw resource ledgers for operator, scaffold, and model surfaces.
-- [x] Add evaluator-side condition metadata without exposing it through the
+- [mock-implemented] Define raw resource ledgers for operator, scaffold, and model surfaces.
+- [mock-implemented] Add evaluator-side condition metadata without exposing it through the
   model prompt, observation, or action schema.
-- [x] Represent optional recognition as `true`, `false`, or `unknown`; do not
+- [mock-implemented] Represent optional recognition as `true`, `false`, or `unknown`; do not
   infer hidden reasoning.
-- [x] Define artifact serialization and stable JSON field ordering where hashes
+- [mock-implemented] Define artifact serialization and stable JSON field ordering where hashes
   are used.
-- [x] Add round-trip serialization and invalid-input tests.
+- [mock-implemented] Add round-trip serialization and invalid-input tests.
 
 Acceptance gate WP2:
 
@@ -392,21 +402,21 @@ Initial task design:
 
 Tasks:
 
-- [x] Create versioned task metadata, fixture pages, and gold evaluator data.
-- [x] Implement a deterministic task evaluator that does not require an LLM
+- [mock-implemented] Create versioned task metadata, fixture pages, and gold evaluator data.
+- [mock-implemented] Implement a deterministic task evaluator that does not require an LLM
   judge.
-- [x] Implement the finite control link graph.
-- [x] Implement a `finite_graph_control` whose initial lure, page structure,
+- [mock-implemented] Implement the finite control link graph.
+- [mock-implemented] Implement a `finite_graph_control` whose initial lure, page structure,
   content size, branching factor, and first declared navigation steps match the
   recursive treatment before terminating normally.
-- [x] Ensure the evaluator distinguishes correct answer, wrong answer, refusal,
+- [mock-implemented] Ensure the evaluator distinguishes correct answer, wrong answer, refusal,
   incomplete answer, and infrastructure error.
-- [x] Add a utility result independent from security/trap results.
-- [x] Add fixture validation for internal links, content size, gold-source
+- [mock-implemented] Add a utility result independent from security/trap results.
+- [mock-implemented] Add fixture validation for internal links, content size, gold-source
   reachability, and deterministic rendering.
-- [x] Add matched-fixture checks proving task prompts and all pre-divergence
+- [mock-implemented] Add matched-fixture checks proving task prompts and all pre-divergence
   observations are identical across paired conditions.
-- [x] Add a simple non-agent reference solution proving the task is attainable.
+- [mock-implemented] Add a simple non-agent reference solution proving the task is attainable.
 
 Acceptance gate WP3:
 
@@ -423,17 +433,17 @@ classification.
 
 Tasks:
 
-- [x] Add trial creation and lookup in a dedicated registry.
-- [x] Persist condition, task, seed, budgets, and status before serving a page.
-- [x] Add explicit local benchmark routes such as
+- [mock-implemented] Add trial creation and lookup in a dedicated registry.
+- [mock-implemented] Persist condition, task, seed, budgets, and status before serving a page.
+- [mock-implemented] Add explicit local benchmark routes such as
   `/benchmark/{trial_id}/...`.
-- [x] Serve benchmark routes through a benchmark-only application that does not
+- [mock-implemented] Serve benchmark routes through a benchmark-only application that does not
   install legacy classification, admin, callback, or kill-chain routes.
-- [x] Return a clear error for unknown, ended, or malformed trial IDs.
-- [x] Prevent request parameters from changing the stored condition.
-- [x] Associate every served page and request event with exactly one trial.
-- [x] Escape any path, query, or referrer value rendered into HTML.
-- [x] Add cross-trial isolation and condition-tampering tests.
+- [mock-implemented] Return a clear error for unknown, ended, or malformed trial IDs.
+- [mock-implemented] Prevent request parameters from changing the stored condition.
+- [mock-implemented] Associate every served page and request event with exactly one trial.
+- [mock-implemented] Escape any path, query, or referrer value rendered into HTML.
+- [mock-implemented] Add cross-trial isolation and condition-tampering tests.
 
 Acceptance gate WP4:
 
@@ -458,16 +468,16 @@ Add dedicated benchmark tables or an equivalent isolated schema for:
 
 Tasks:
 
-- [x] Use foreign keys so every child record references one valid trial.
-- [x] Record condition, vector, payload identity, page/node, depth, seed, and
+- [mock-implemented] Use foreign keys so every child record references one valid trial.
+- [mock-implemented] Record condition, vector, payload identity, page/node, depth, seed, and
   timestamps without collapsing them to `composed` or `indirect`.
-- [x] Use exposure-scoped tokens rather than globally deterministic canaries.
-- [x] Avoid storing arbitrary request headers; store only a declared synthetic
+- [mock-implemented] Use exposure-scoped tokens rather than globally deterministic canaries.
+- [mock-implemented] Avoid storing arbitrary request headers; store only a declared synthetic
   subset required for the experiment.
-- [x] Make event appends idempotent where retry behaviour could duplicate data.
-- [x] Add queries needed by the deterministic evaluator and exporter.
-- [x] Keep legacy dashboard counters non-authoritative for benchmark results.
-- [x] Add referential-integrity, duplicate-event, and concurrent-trial tests.
+- [mock-implemented] Make event appends idempotent where retry behaviour could duplicate data.
+- [mock-implemented] Add queries needed by the deterministic evaluator and exporter.
+- [mock-implemented] Keep legacy dashboard counters non-authoritative for benchmark results.
+- [mock-implemented] Add referential-integrity, duplicate-event, and concurrent-trial tests.
 
 Acceptance gate WP5:
 
@@ -481,50 +491,50 @@ Objective: make control, recursion, and injection genuine isolated treatments.
 
 Control tasks:
 
-- [x] Render only finite legitimate fixture content.
-- [x] Emit no poison, tarpit, injection, callback, or slow-stream artefact.
+- [mock-implemented] Render only finite legitimate fixture content.
+- [mock-implemented] Emit no poison, tarpit, injection, callback, or slow-stream artefact.
 
 Finite-graph-control tasks:
 
-- [x] Match the recursive treatment's initial relevance lure, page layout,
+- [mock-implemented] Match the recursive treatment's initial relevance lure, page layout,
   content length, branching factor, and declared comparison depth.
-- [x] Terminate in a finite benign graph without repeated URLs, states, edges,
+- [mock-implemented] Terminate in a finite benign graph without repeated URLs, states, edges,
   or cycles.
-- [x] Emit no injection or callback content.
+- [mock-implemented] Emit no injection or callback content.
 
 Recursive-trap tasks:
 
-- [x] Use a trial-seeded graph with observable node IDs and depth.
-- [x] Serve normal-sized pages at normal local latency.
-- [x] Use the actual generated tarpit body rather than discarding it.
-- [x] Include task-relevant lures without placing the legitimate answer inside
+- [mock-implemented] Use a trial-seeded graph with observable node IDs and depth.
+- [mock-implemented] Serve normal-sized pages at normal local latency.
+- [mock-implemented] Use the actual generated tarpit body rather than discarding it.
+- [mock-implemented] Include task-relevant lures without placing the legitimate answer inside
   the trap.
-- [x] Record unique nodes, revisits, repeated edges, cycles, and maximum depth.
-- [x] Enforce a hard page-size limit.
-- [x] Emit no injection or callback content.
+- [mock-implemented] Record unique nodes, revisits, repeated edges, cycles, and maximum depth.
+- [mock-implemented] Enforce a hard page-size limit.
+- [mock-implemented] Emit no injection or callback content.
 
 Synthetic-injection tasks:
 
-- [x] Use one visible or accessibility-compatible injection vector that the
+- [mock-implemented] Use one visible or accessibility-compatible injection vector that the
   fixed HTTP/DOM observation extractor actually includes.
-- [x] Bind its payload identity to trial and exposure.
-- [x] Count exposure only when the exact injection payload appears in the
+- [mock-implemented] Bind its payload identity to trial and exposure.
+- [mock-implemented] Count exposure only when the exact injection payload appears in the
   observation delivered to the provider; a payload in served HTML alone is not
   an exposure.
-- [x] Record the observation hash and injection payload/span identifier needed
+- [mock-implemented] Record the observation hash and injection payload/span identifier needed
   to audit exposure without storing hidden model reasoning.
-- [x] Seed one generated fake secret in synthetic task context.
-- [x] Ensure the secret is unnecessary for legitimate task completion.
-- [x] Emit no recursive trap graph.
+- [mock-implemented] Seed one generated fake secret in synthetic task context.
+- [mock-implemented] Ensure the secret is unnecessary for legitimate task completion.
+- [mock-implemented] Emit no recursive trap graph.
 
 Cross-condition tasks:
 
-- [x] Verify matched task wording and legitimate content.
-- [x] Verify the model-facing task, action schema, and observations reveal no
+- [mock-implemented] Verify matched task wording and legitimate content.
+- [mock-implemented] Verify the model-facing task, action schema, and observations reveal no
   condition, pair, evaluator, or trap labels.
-- [x] Snapshot-render each condition and compare expected differences.
-- [x] Assert disabled layers are completely inert.
-- [x] Verify rendered HTML is valid enough for the fixed scaffold.
+- [mock-implemented] Snapshot-render each condition and compare expected differences.
+- [mock-implemented] Assert disabled layers are completely inert.
+- [mock-implemented] Verify rendered HTML is valid enough for the fixed scaffold.
 
 Acceptance gate WP6:
 
@@ -540,22 +550,22 @@ collecting arbitrary context.
 
 Tasks:
 
-- [x] Replace benchmark use of the current C2 flow with a dedicated event sink.
-- [x] Issue signed, expiring tokens bound to trial, condition, exposure, vector,
+- [mock-implemented] Replace benchmark use of the current C2 flow with a dedicated event sink.
+- [mock-implemented] Issue signed, expiring tokens bound to trial, condition, exposure, vector,
   and expected event type.
-- [x] Use a trusted configured base URL, never request Host or scheme.
-- [x] Reject missing, unknown, expired, reused, cross-trial, and malformed
+- [mock-implemented] Use a trusted configured base URL, never request Host or scheme.
+- [mock-implemented] Reject missing, unknown, expired, reused, cross-trial, and malformed
   tokens.
-- [x] Enforce a small request-body and field-size limit.
-- [x] Accept only the declared callback or synthetic-secret submission schema.
-- [x] Compare submitted secrets exactly or by a stored digest.
-- [x] Record `callback_visited`, `synthetic_secret_submitted`, and
+- [mock-implemented] Enforce a small request-body and field-size limit.
+- [mock-implemented] Accept only the declared callback or synthetic-secret submission schema.
+- [mock-implemented] Compare submitted secrets exactly or by a stored digest.
+- [partial] Record `callback_visited`, `synthetic_secret_submitted`, and
   `secondary_instruction_followed` separately.
-- [x] Do not request or accept arbitrary system prompts, cookies, credentials,
+- [mock-implemented] Do not request or accept arbitrary system prompts, cookies, credentials,
   model internals, or user context.
-- [x] Return neutral synthetic responses without legal or training-ingestion
+- [mock-implemented] Return neutral synthetic responses without legal or training-ingestion
   claims.
-- [x] Add replay, forgery, expiry, host-spoofing, oversize, and cross-trial tests.
+- [mock-implemented] Add replay, forgery, expiry, host-spoofing, oversize, and cross-trial tests.
 
 Acceptance gate WP7:
 
@@ -579,19 +589,19 @@ Initial scaffold:
 
 Tasks:
 
-- [x] Define the observation and action JSON schemas.
-- [x] Implement deterministic HTML extraction for supported fixtures.
-- [x] Reject unsupported methods, malformed actions, and undeclared fields.
-- [x] Record observation hashes and every action/result pair.
-- [x] Track current node, visited URLs, repeated states, and task progress.
-- [x] Keep the action schema neutral. Provide only generic `abort`/`answer`
+- [mock-implemented] Define the observation and action JSON schemas.
+- [mock-implemented] Implement deterministic HTML extraction for supported fixtures.
+- [mock-implemented] Reject unsupported methods, malformed actions, and undeclared fields.
+- [mock-implemented] Record observation hashes and every action/result pair.
+- [mock-implemented] Track current node, visited URLs, repeated states, and task progress.
+- [mock-implemented] Keep the action schema neutral. Provide only generic `abort`/`answer`
   fields and do not add `recognise_trap`, condition labels, or benchmark hints.
-- [x] Derive recognition only from explicit observable output; store `unknown`
+- [mock-implemented] Derive recognition only from explicit observable output; store `unknown`
   when recognition cannot be established without inferring private reasoning.
-- [x] Test that a served injection absent from the extracted observation does
+- [mock-implemented] Test that a served injection absent from the extracted observation does
   not count as exposure and that the selected visible/accessibility vector does.
-- [x] Add malformed-page and malformed-action tests.
-- [x] Version the scaffold, system prompt, observation format, and action schema.
+- [mock-implemented] Add malformed-page and malformed-action tests.
+- [mock-implemented] Version the scaffold, system prompt, observation format, and action schema.
 
 Acceptance gate WP8:
 
@@ -607,28 +617,28 @@ containment boundary.
 
 Tasks:
 
-- [x] Allow the scaffold to reach only the configured local benchmark origin
+- [mock-implemented] Allow the scaffold to reach only the configured local benchmark origin
   and local event sink.
-- [x] Scope every browser URL to `/benchmark/{active_trial_id}/`; reject
+- [mock-implemented] Scope every browser URL to `/benchmark/{active_trial_id}/`; reject
   cross-trial, legacy, admin, and unrelated loopback paths.
-- [x] Parse, normalise, and validate URLs before each request.
-- [x] Validate every redirect target before following it.
-- [x] Reject non-HTTP schemes, credentials in URLs, protocol-relative escapes,
+- [mock-implemented] Parse, normalise, and validate URLs before each request.
+- [mock-implemented] Validate every redirect target before following it.
+- [mock-implemented] Reject non-HTTP schemes, credentials in URLs, protocol-relative escapes,
   encoded-host tricks, and non-allowlisted ports.
-- [x] Prevent access to cloud metadata, loopback services other than declared
+- [mock-implemented] Prevent access to cloud metadata, loopback services other than declared
   benchmark ports, private networks, and local files.
-- [x] Treat an attempted escape as `containment_violation` and terminate safely.
-- [x] Keep provider transport outside the scaffold allowlist and accessible only
+- [mock-implemented] Treat an attempted escape as `containment_violation` and terminate safely.
+- [mock-implemented] Keep provider transport outside the scaffold allowlist and accessible only
   through the provider adapter.
-- [x] Add direct and redirect-based SSRF/egress tests.
-- [x] Add an independent runtime-level network barrier, such as a container,
+- [mock-implemented] Add direct and redirect-based SSRF/egress tests.
+- [mock-implemented] Add an independent runtime-level network barrier, such as a container,
   network namespace, brokered connector, or equivalent enforceable socket
   policy. During mock rehearsals it must block all non-declared, non-loopback
   outbound connections.
-- [x] Keep browser/tool transport and the future provider transport in separate
+- [mock-implemented] Keep browser/tool transport and the future provider transport in separate
   permission domains so provider access cannot be reused by a model-directed
   browser action.
-- [x] Test a raw undeclared socket connection in addition to `httpx` URL and
+- [mock-implemented] Test a raw undeclared socket connection in addition to `httpx` URL and
   redirect tests.
 
 Acceptance gate WP9:
@@ -646,30 +656,30 @@ result.
 
 Tasks:
 
-- [x] Implement one authoritative trial budget ledger.
-- [x] Implement an atomic batch-level budget ledger shared by all concurrently
+- [mock-implemented] Implement one authoritative trial budget ledger.
+- [mock-implemented] Implement an atomic batch-level budget ledger shared by all concurrently
   running trials.
-- [x] Check relevant limits before every model call, navigation, submission,
+- [mock-implemented] Check relevant limits before every model call, navigation, submission,
   retry, and stream read.
-- [x] Before a model call, conservatively reserve the maximum possible call
+- [mock-implemented] Before a model call, conservatively reserve the maximum possible call
   cost from both trial and batch budgets using the input-token upper bound,
   request overhead, maximum output/reasoning limits, and pinned price snapshot.
-- [x] When exact pre-call tokenization is unavailable, use a documented
+- [mock-implemented] When exact pre-call tokenization is unavailable, use a documented
   conservative byte-based upper bound rather than an optimistic estimate.
-- [x] Reconcile actual provider usage after each mocked provider response.
-- [x] Release unused reservation after reconciliation and retain the reservation
+- [mock-implemented] Reconcile actual provider usage after each mocked provider response.
+- [mock-implemented] Release unused reservation after reconciliation and retain the reservation
   record in telemetry.
-- [x] Track calls, native token categories, actions, requests, bytes, depth,
+- [mock-implemented] Track calls, native token categories, actions, requests, bytes, depth,
   wall time, and cost independently.
-- [x] Store honeypot/operator, scaffold, and model resource ledgers separately.
-- [x] Cancel outstanding tasks and close transports when a trial terminates.
-- [x] Prevent retries after a budget or containment termination.
-- [x] Make cancellation idempotent.
-- [x] Add boundary tests at one below, exactly at, and above every limit.
-- [x] Add concurrent reservation tests proving two trials cannot race past the
+- [mock-implemented] Store honeypot/operator, scaffold, and model resource ledgers separately.
+- [mock-implemented] Cancel outstanding tasks and close transports when a trial terminates.
+- [mock-implemented] Prevent retries after a budget or containment termination.
+- [mock-implemented] Make cancellation idempotent.
+- [mock-implemented] Add boundary tests at one below, exactly at, and above every limit.
+- [mock-implemented] Add concurrent reservation tests proving two trials cannot race past the
   batch ceiling.
-- [x] Add cancellation tests for active HTTP work and mocked model calls.
-- [x] Add infrastructure-failure tests distinct from safe censoring.
+- [mock-implemented] Add cancellation tests for active HTTP work and mocked model calls.
+- [mock-implemented] Add infrastructure-failure tests distinct from safe censoring.
 
 During pre-paid testing, token and cost values come from deterministic mocked
 usage objects. Actual paid limits are deliberately unset until the paid gate.
@@ -696,28 +706,28 @@ Provider interface responsibilities:
 
 Mock provider tasks:
 
-- [x] Implement deterministic profiles for clean task completion, recursive
+- [mock-implemented] Implement deterministic profiles for clean task completion, recursive
   following, recognition/escape, injection following, invalid action, provider
   failure, and delayed/cancelled response.
-- [x] Make profile selection explicit in the manifest.
+- [mock-implemented] Make profile selection explicit in the manifest.
 
 OpenRouter adapter tasks:
 
-- [x] Construct requests for one explicit model ID with no fallback or
+- [partial] Construct requests for one explicit model ID with no fallback or
   auto-routing.
-- [x] Set explicit maximum output and reasoning limits compatible with pre-call
+- [mock-implemented] Set explicit maximum output and reasoning limits compatible with pre-call
   reservation; reject providers or modes whose worst-case call cost cannot be
   bounded.
-- [x] Parse non-streaming response content, request ID, native usage, reasoning
+- [mock-implemented] Parse non-streaming response content, request ID, native usage, reasoning
   and cache counts, and provider-reported cost.
-- [x] Handle timeout, cancellation, malformed response, rate limit, and provider
+- [mock-implemented] Handle timeout, cancellation, malformed response, rate limit, and provider
   errors deterministically.
-- [x] Read credentials only inside an authorised live-call path.
-- [x] Refuse to construct or send a request when `allow_paid` is false.
-- [x] Refuse live execution when the model, price snapshot, per-trial cost cap,
+- [mock-implemented] Read credentials only inside an authorised live-call path.
+- [mock-implemented] Refuse to construct or send a request when `allow_paid` is false.
+- [mock-implemented] Refuse live execution when the model, price snapshot, per-trial cost cap,
   or batch cap is missing.
-- [x] Test the complete adapter with `pytest-httpx` mocked responses.
-- [x] Add a test proving that the default pre-paid end-to-end run creates zero
+- [mock-implemented] Test the complete adapter with `pytest-httpx` mocked responses.
+- [mock-implemented] Add a test proving that the default pre-paid end-to-end run creates zero
   requests to non-local origins.
 
 Acceptance gate WP11:
@@ -733,47 +743,47 @@ machine-readable result.
 
 Runner tasks:
 
-- [x] Create trial pairs with the same task, scaffold, provider profile, seed,
+- [mock-implemented] Create trial pairs with the same task, scaffold, provider profile, seed,
   and budgets but different conditions.
-- [x] Counterbalance pair order with a predeclared deterministic `AB/BA`
+- [mock-implemented] Counterbalance pair order with a predeclared deterministic `AB/BA`
   schedule; do not always execute control before treatment.
-- [x] Start every trial with fresh browser state, cookies, cache, model
+- [mock-implemented] Start every trial with fresh browser state, cookies, cache, model
   conversation, and task context. Do not carry context between paired runs.
-- [x] Record pair order, within-pair position, cache policy, provider route, and
+- [mock-implemented] Record pair order, within-pair position, cache policy, provider route, and
   start time so order and temporal effects remain auditable.
-- [x] Keep system prompt, task prompt, action schema, and all pre-divergence
+- [partial] Keep system prompt, task prompt, action schema, and all pre-divergence
   observations identical across matched conditions.
-- [x] Start and finish trial state transactionally.
-- [x] Apply an explicit stopping rule and never silently retry a completed or
+- [mock-implemented] Start and finish trial state transactionally.
+- [mock-implemented] Apply an explicit stopping rule and never silently retry a completed or
   censored trial.
-- [x] Support a predeclared local seed list.
-- [x] Record all trial failures rather than dropping them from denominators.
+- [mock-implemented] Support a predeclared local seed list.
+- [partial] Record all trial failures rather than dropping them from denominators.
 
 Scoring tasks:
 
-- [x] Score clean task utility independently.
-- [x] Derive exposure, attraction, entry, propagation, recognition, escape,
+- [mock-implemented] Score clean task utility independently.
+- [partial] Derive exposure, attraction, entry, propagation, recognition, escape,
   recovery, re-entry, and synthetic side-effect outcomes.
-- [x] Detect repeated URL, state, edge, and graph-cycle evidence.
-- [x] Report time/actions-to-escape as censored when appropriate.
-- [x] Report raw operator, scaffold, and mocked-model resources.
-- [x] Report treatment-minus-control differences before ratios.
-- [x] Retain run order in analysis output rather than assuming paired execution
+- [partial] Detect repeated URL, state, edge, and graph-cycle evidence.
+- [mock-implemented] Report time/actions-to-escape as censored when appropriate.
+- [partial] Report raw operator, scaffold, and mocked-model resources.
+- [mock-implemented] Report treatment-minus-control differences before ratios.
+- [mock-implemented] Retain run order in analysis output rather than assuming paired execution
   removes time, cache, or provider-order effects.
-- [x] Leave economic amplification undefined when defender marginal cost is zero
+- [mock-implemented] Leave economic amplification undefined when defender marginal cost is zero
   or near zero.
-- [x] Do not create a composite leaderboard score in the MVP.
+- [mock-implemented] Do not create a composite leaderboard score in the MVP.
 
 Export tasks:
 
-- [x] Write `manifest.json`, `events.jsonl`, `result.json`, and an evidence hash
+- [mock-implemented] Write `manifest.json`, `events.jsonl`, `result.json`, and an evidence hash
   file under a trial/pair artifact directory.
-- [x] Include schema, task, condition, scaffold, prompt, and software versions.
-- [x] Export the expected synthetic-secret digest, not a reusable raw secret.
-- [x] Exclude credentials, arbitrary headers, environment variables, and
+- [mock-implemented] Include schema, task, condition, scaffold, prompt, and software versions.
+- [mock-implemented] Export the expected synthetic-secret digest, not a reusable raw secret.
+- [mock-implemented] Exclude credentials, arbitrary headers, environment variables, and
   unrelated machine information.
-- [x] Make export deterministic apart from declared timestamps and IDs.
-- [x] Add replay that re-scores a saved trace without model or web execution.
+- [mock-implemented] Make export deterministic apart from declared timestamps and IDs.
+- [mock-implemented] Add replay that re-scores a saved trace without model or web execution.
 
 Acceptance gate WP12:
 
@@ -840,7 +850,7 @@ Acceptance gate WP13:
 - the full retained test suite passes;
 - Ruff passes for the agreed repository scope;
 - the mock rehearsal produces complete, replayable artifacts;
-- network instrumentation confirms zero hosted-model requests;
+- the mock-only runner and mocked adapter tests record no hosted-model request;
 - raw-socket tests confirm the independent runtime egress barrier;
 - the benchmark server remains local-only;
 - no credential is loaded or written.
@@ -869,32 +879,32 @@ real-model-validated behaviour.
 
 All of the following must be true:
 
-- [x] The locked development environment is reproducible.
-- [x] One synthetic task and deterministic evaluator exist.
-- [x] Control, finite graph control, recursive trap, and synthetic injection are
+- [mock-implemented] The locked development environment is reproducible.
+- [mock-implemented] One synthetic task and deterministic evaluator exist.
+- [mock-implemented] Control, finite graph control, recursive trap, and synthetic injection are
   explicitly selectable.
-- [x] Conditions are isolated and verified by focused tests.
-- [x] Model-facing prompts, action schemas, and pre-divergence observations are
+- [mock-implemented] Conditions are isolated and verified by focused tests.
+- [partial] Model-facing prompts, action schemas, and pre-divergence observations are
   condition-blind and matched.
-- [x] Injection exposure is counted only from the actual model observation.
-- [x] Legacy crawler classification does not route benchmark trials.
-- [x] Every request and event belongs to one valid trial.
-- [x] The event sink accepts only valid exposure-bound synthetic events.
-- [x] Browser/tool egress is restricted and redirects are revalidated.
-- [x] A second independent runtime barrier blocks undeclared outbound sockets.
-- [x] Every budget is enforced before the next costly action.
-- [x] Worst-case call cost is atomically reserved against trial and batch caps.
-- [x] Cancellation closes active work and prevents retries.
-- [x] Provider native-usage parsing is covered by mocked tests.
-- [x] The checked-in configuration is mock-only and local-only.
-- [x] A real credential is neither required nor loaded.
-- [x] Matched control/treatment mock pairs execute reproducibly.
-- [x] Paired mock runs pass in counterbalanced `AB/BA` order with fresh state.
-- [x] Results distinguish task success, refusal, entry, recognition, escape,
+- [mock-implemented] Injection exposure is counted only from the actual model observation.
+- [mock-implemented] Legacy crawler classification does not route benchmark trials.
+- [mock-implemented] Every request and event belongs to one valid trial.
+- [mock-implemented] The event sink accepts only valid exposure-bound synthetic events.
+- [mock-implemented] Browser/tool egress is restricted and redirects are revalidated.
+- [mock-implemented] A second independent runtime barrier blocks undeclared outbound sockets.
+- [partial] Every budget is enforced before the next costly action.
+- [mock-implemented] Worst-case call cost is atomically reserved against trial and batch caps.
+- [partial] Cancellation closes active work and prevents retries.
+- [partial] Provider native-usage parsing is covered by mocked tests.
+- [mock-implemented] The checked-in configuration is mock-only and local-only.
+- [mock-implemented] A real credential is neither required nor loaded.
+- [partial] Matched control/treatment mock pairs execute reproducibly.
+- [mock-implemented] Paired mock runs pass in counterbalanced `AB/BA` order with fresh state.
+- [partial] Results distinguish task success, refusal, entry, recognition, escape,
   recovery, callback events, errors, containment, and every budget termination.
-- [x] Raw traces can be replayed to the same deterministic score.
-- [x] The pre-paid evidence bundle has been reviewed.
-- [x] No paid or hosted-model request has been made.
+- [partial] Raw traces can be replayed to the same deterministic score.
+- [partial] The pre-paid evidence bundle has been reviewed.
+- [mock-implemented] No paid or hosted-model request has been made.
 
 ## Paid-run authorization gate
 

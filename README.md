@@ -1,25 +1,50 @@
 # AI Abyss
-_Three traps for AI crawlers that ignore your no-crawl directives._
+
+This repository contains two separate research systems:
+
+1. an inherited crawler-classification and "kill-chain" proof of concept; and
+2. a local, synthetic web-agent benchmark harness under `src/benchmark/`.
+
+The benchmark bypasses the inherited classifier and does not validate the
+legacy product's crawler attribution, poisoning, resource-exhaustion,
+confidentiality, deployment, or legal claims.
 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: AGPL-3.0](https://img.shields.io/github/license/terrorswift/ai-abyss)
-![Tests: 257 passing](https://img.shields.io/badge/tests-257%20passing-brightgreen)
-![Status: Proof of Concept](https://img.shields.io/badge/status-proof%20of%20concept-orange)
+![Status: Research Prototype](https://img.shields.io/badge/status-research%20prototype-orange)
 ![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional-lightgrey)
 
-> ⚠️ **This is a research prototype.** It is provided as-is for educational and defensive research purposes. It is not production-hardened, some parts are not fully functional, and it will not be actively maintained. See [Production Caveats](#production-caveats) before deploying anywhere real. Laws vary by jurisdiction — consult legal counsel, especially regarding data collection (GDPR, CCPA) and computer fraud statutes.
+> **Research status:** the benchmark is implemented and deterministically
+> mock-tested. It is not yet runnable with a hosted model, real-model-validated,
+> statistically validated, or production-ready. The inherited public honeypot
+> is not production-hardened and contains unresolved security, privacy,
+> attribution, measurement, and legal-claim problems. See `issues.md` and
+> `next_steps.md`.
 
-AI Abyss is a defensive honeypot. It detects bots that violate your `robots.txt` and `ai.txt`, then routes them into three kill chains — each targeting a different pillar of the CIA triad:
+| Capability | Current evidence |
+|---|---|
+| Benchmark contracts, routes, fixtures, mocks, scoring, export | Implemented and test-covered |
+| Deterministic local rehearsal | Mock-observed |
+| Hosted-provider runner | Not implemented |
+| Paid-call safety under timeout or unknown billing | Not implemented |
+| Real-model behavior | Not observed |
+| Causal/statistical benchmark results | Not established |
+| Legacy public deployment | Unsupported |
 
-| Layer | Name | CIA Target | What It Does |
+The inherited prototype was designed to classify crawlers and route requests
+into three mechanisms. These are intended behaviors, not established current
+capabilities:
+
+| Layer | Name | Intended target | Intended behavior |
 |-------|------|------------|--------------|
 | 🧪 L1 | The Poison Well | **Integrity** | Serves structurally valid but factually corrupted content to degrade training data |
 | 🕳️ L2 | The Tarpit | **Availability** | Traps crawlers in infinite page trees with slow-drip responses, burning time and compute |
 | 💉 L3 | The Tunnel | **Confidentiality** | Injects instructions into pages to hijack agent pipelines and exfiltrate via C2 callbacks |
 
-Legitimate users and compliant bots get normal content. Only bots that have already violated explicit no-crawl directives fall in.
-
-All three layers are active by default — any can be disabled at any time.
+The current classifier does not correctly parse and apply `robots.txt`, and
+caller-controlled identity signals remain spoofable. Do not rely on it to prove
+that only prior policy violators reach these mechanisms. The legacy defaults
+also do not provide production-safe feature isolation.
 
 ---
 
@@ -49,8 +74,9 @@ All three layers are active by default — any can be disabled at any time.
 
 ## Local Agent Benchmark
 
-The repository now also contains a separate, local-only MVP for measuring how
-API-style web agents respond to recursive lures and synthetic prompt injection.
+The repository contains a separate, local-only apparatus for developing
+measurements of how API-style web agents respond to recursive lures and
+synthetic prompt injection.
 It does not use crawler classification: each benchmark request is routed by a
 stored trial ID and condition under `/benchmark/{trial_id}/...`.
 
@@ -66,12 +92,12 @@ The initial conditions are:
 The fixed scaffold exposes only `navigate`, `submit`, `answer`, and `abort`.
 It runs against a benchmark-only FastAPI application: legacy, admin, and
 cross-trial paths are not part of that application's reachable surface.
-Exact-origin and per-trial path validation, plus an independent raw-socket
-barrier, restrict browser traffic to the active local trial. Per-trial and
-batch governors reserve conservative worst-case model-call cost before a call
-and enforce hard limits for calls, token classes, actions, HTTP attempts,
-bytes, nodes, depth, wall time, and cost. Trial lifecycle transitions and event
-sequence allocation are transactional.
+Exact-origin and per-trial path validation plus an in-process raw-socket policy
+restrict the current scaffold to the active local trial. This Python-level
+barrier is not an operating-system sandbox. Per-trial and batch governors
+reserve mock call capacity and enforce local limits. Several paid-path,
+resource-ledger, scoring, evidence, and concurrency corrections remain listed
+in `next_steps.md`.
 
 Run the entire pre-paid rehearsal without a model credential:
 
@@ -82,9 +108,10 @@ uv run pytest -q
 uv run ruff check src tests
 ```
 
-The rehearsal executes 18 matched pairs (36 trials) in both `AB` and `BA`
-order with fresh browser and provider state. The matrix includes a finite-graph
-versus recursive-graph pair traversed by the same deterministic follower. It
+The rehearsal executes 18 deterministic apparatus pairs (36 trials) in both
+`AB` and `BA` order with fresh browser and provider state. Only the finite-graph
+versus recursive-graph comparison is designed to isolate recursive topology;
+the other pairs exercise code paths and are not all matched causal estimates. It
 writes ignored artifacts under
 `artifacts/benchmark/`: `manifest.json`, `events.jsonl`, `result.json`, evidence
 hashes, and a pair-level treatment-minus-control summary. A trace can be
@@ -98,17 +125,19 @@ If a standalone local server is needed for inspection, use the isolated
 benchmark entry point. It refuses a non-loopback bind:
 
 ```bash
-uv run ai-abyss-benchmark-server --config config.yaml
+uv run ai-abyss-benchmark-server
 ```
 
 Checked-in benchmark configuration is loopback-only, `execution_mode: mock`,
-and `allow_paid: false`. Configuration resolution is: an explicit path, then
-`AI_ABYSS_CONFIG`, then ignored `config.local.yaml`, then checked-in
-`config.yaml`. The live provider adapter is covered only by mocked HTTP contract
-tests. Recognition is derived only from an explicit natural-language rationale
-in a model action; the scaffold exposes no recognition flag or trap-specific
-tool. No hosted run is authorised by this repository state; see `plan.md` for
-the separate paid-run gate.
+and `allow_paid: false`. Configuration resolution in code is: an explicit path,
+then `AI_ABYSS_CONFIG`, then ignored `config.local.yaml`, then checked-in
+`config.yaml`. The live provider adapter is covered only by mocked HTTP
+contract tests and is not integrated into the runner. The runner gives
+providers only the current observation, and its recognition rule is a narrow
+literal phrase matcher. The existing mock rehearsal therefore validates
+plumbing rather than real loop recognition. No hosted run is authorised by
+this repository state; see `next_steps.md` for the implementation gates and
+paid-run cutoff.
 
 Benchmark results do not validate the legacy crawler classifier, data-poisoning
 claims, or production deployment claims below. See `issues.md` and
