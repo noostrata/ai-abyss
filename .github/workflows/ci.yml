@@ -14,12 +14,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v9
         with:
           enable-cache: true
+          prune-cache: true
           python-version: "3.12"
 
       - name: Verify dependency lock
@@ -65,7 +66,7 @@ jobs:
           git diff --exit-code
 
       - name: Retain unpaid rehearsal summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unpaid-rehearsal-summary
           path: |
