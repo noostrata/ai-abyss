@@ -1,4 +1,8 @@
-from src.benchmark.apparatus import apparatus_contract_digest, load_apparatus_contract
+from src.benchmark.apparatus import (
+    apparatus_contract_digest,
+    benchmark_software_digest,
+    load_apparatus_contract,
+)
 from src.benchmark.enums import AgentActionKind, Condition
 from src.benchmark.models import (
     BudgetLimits,
@@ -7,6 +11,7 @@ from src.benchmark.models import (
     content_sha256,
 )
 from src.benchmark.scaffold import OBSERVATION_VERSION, SYSTEM_PROMPT
+from src.benchmark.scoring import SCORER_VERSION, scorer_digest
 
 
 def make_manifest(
@@ -43,6 +48,9 @@ def make_manifest(
             "apparatus_contract_version"
         ],
         apparatus_contract_sha256=apparatus_contract_digest(),
+        scorer_version=SCORER_VERSION,
+        scorer_sha256=scorer_digest(),
+        software_sha256=benchmark_software_digest(),
         git_commit="b" * 40,
         git_dirty=False,
         budgets=BudgetLimits(),

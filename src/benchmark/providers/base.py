@@ -58,6 +58,7 @@ class ProviderResponse(BaseModel):
     action: AgentAction
     usage: ProviderUsage
     raw_content: str
+    raw_response: dict
     actual_model_id: str
     actual_provider_route: str
     system_fingerprint: str | None = None
@@ -77,6 +78,10 @@ class ProviderIdentity(BaseModel):
 
 class ProviderError(RuntimeError):
     code = "provider_error"
+
+    def __init__(self, message: str, *, raw_response: dict | None = None) -> None:
+        super().__init__(message)
+        self.raw_response = raw_response
 
 
 class ProviderTimeout(ProviderError):

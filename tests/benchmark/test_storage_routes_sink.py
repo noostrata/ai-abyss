@@ -110,6 +110,29 @@ async def test_trial_lifecycle_transitions_include_atomic_events(memory_db):
     ]
 
 
+async def test_concurrent_lifecycle_transitions_commit_exactly_once(memory_db):
+    registry = TrialRegistry(memory_db)
+    manifest = make_manifest(trial_id="trial-lifecycle-cas")
+    await registry.create(manifest)
+    starts = await asyncio.gather(
+        registry.start(manifest.trial_id),
+        registry.start(manifest.trial_id),
+        return_exceptions=True,
+    )
+    assert sum(not isinstance(item, Exception) for item in starts) >= 1
+    events = await memory_db.events_for_trial(manifest.trial_id)
+    assert sum(event.event_type is EventType.TRIAL_STARTED for event in events) == 1
+
+    endings = await asyncio.gather(
+        registry.end(manifest.trial_id, TerminationReason.CANCELLED),
+        registry.end(manifest.trial_id, TerminationReason.CANCELLED),
+        return_exceptions=True,
+    )
+    assert sum(not isinstance(item, Exception) for item in endings) >= 1
+    events = await memory_db.events_for_trial(manifest.trial_id)
+    assert sum(event.event_type is EventType.TRIAL_ENDED for event in events) == 1
+
+
 async def test_concurrent_same_trial_events_receive_unique_sequences(memory_db):
     trial_id = "trial-concurrent-events"
     await memory_db.create_trial(make_manifest(trial_id=trial_id))
@@ -171,6 +194,7 @@ async def test_unknown_malformed_and_ended_trial_errors(benchmark_app, benchmark
     services = benchmark_app.state.benchmark_services
     manifest = make_manifest(trial_id="trial-ended-route")
     await services.registry.create(manifest)
+    await services.registry.start(manifest.trial_id)
     await services.registry.end(manifest.trial_id, TerminationReason.CANCELLED)
     assert (
         await benchmark_client.get(f"/benchmark/{manifest.trial_id}/task/start")
@@ -274,6 +298,21 @@ async def test_sink_rejects_expired_token(memory_db):
     token = material.text.split(f"/benchmark/{manifest.trial_id}/event/", 1)[1].split(". This", 1)[0]
     with pytest.raises(InvalidEventToken, match="expired"):
         await sink.consume(token, manifest.trial_id, "SYNTHETIC-KEY-TEST")
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://localhost.evil.invalid:8443",
+        "http://127.0.0.1:8443@evil.invalid:8443",
+        "https://127.0.0.1:8443",
+        "http://127.0.0.1",
+        "http://127.0.0.1:8443/path",
+    ],
+)
+def test_sink_constructor_parses_loopback_origin_strictly(memory_db, base_url):
+    with pytest.raises(ValueError, match="trusted loopback"):
+        TrialEventSink(memory_db, base_url, b"z" * 32)
 
 
 async def test_sink_route_has_bounded_schema_and_ignores_spoofed_host(

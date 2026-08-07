@@ -125,6 +125,24 @@ async def test_response_body_is_stopped_at_declared_remaining_budget():
     await scaffold.close()
 
 
+async def test_partial_stream_bytes_are_retained_when_limit_interrupts_read():
+    class Chunks(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b"12"
+            yield b"345"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=Chunks(), request=request)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    scaffold = AgentScaffold(client, EgressPolicy(["http://127.0.0.1:8443"]))
+    scaffold.response_byte_limit = 4
+    with pytest.raises(ResponseLimitExceeded):
+        await scaffold.open("http://127.0.0.1:8443/page")
+    assert scaffold.last_response_bytes == 2
+    await scaffold.close()
+
+
 async def test_active_http_work_is_cancellable_and_transport_closes():
     release = __import__("asyncio").Event()
 

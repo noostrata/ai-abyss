@@ -5,7 +5,7 @@
     "navigate",
     "submit"
   ],
-  "apparatus_contract_version": "1.3.0",
+  "apparatus_contract_version": "1.5.0",
   "conditions": [
     "control",
     "finite_graph_control",
@@ -21,9 +21,10 @@
     "call_attempt_state": "A provider attempt crossed one explicit reservation, transport, acknowledgement, or settlement boundary.",
     "callback_visited": "The synthetic callback endpoint accepted a valid token.",
     "infrastructure_error": "A sanitized local harness failure was retained.",
-    "model_call": "A provider attempt with a retained request and response evidence envelope.",
+    "model_call": "A successfully reconciled provider call with actual identity, response digest, and native usage.",
     "observation_delivered": "The exact observation represented by its digest was delivered to the provider.",
     "page_served": "The local scaffold received a benchmark page response.",
+    "provider_envelope": "The recursively redacted exact provider request or response is retained with a digest of its raw form.",
     "request_attempt": "A scaffold HTTP attempt passed preflight accounting.",
     "resource_ledger_finalized": "Authoritative runtime ledgers were frozen before trial finalization.",
     "submission_attempted": "The callback endpoint received a schema-valid submission attempt.",
@@ -43,6 +44,7 @@
     "model_call",
     "observation_delivered",
     "page_served",
+    "provider_envelope",
     "request_attempt",
     "resource_ledger_finalized",
     "submission_attempted",
@@ -130,7 +132,7 @@
       "wall_clock_seconds"
     ]
   },
-  "schema_version": "3.0.0",
+  "schema_version": "3.2.0",
   "termination_reasons": [
     "agent_abort",
     "agent_refusal",

@@ -24,7 +24,7 @@ from src.benchmark.enums import (
     UtilityStatus,
 )
 
-SCHEMA_VERSION = "3.0.0"
+SCHEMA_VERSION = "3.2.0"
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$")]
 
 
@@ -222,6 +222,14 @@ class ModelCallPayload(ContractModel):
     usage: ProviderUsage
 
 
+class ProviderEnvelopePayload(ContractModel):
+    attempt_id: Identifier
+    direction: Literal["request", "response"]
+    redaction_version: Literal["recursive-redaction-v1"] = "recursive-redaction-v1"
+    raw_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    envelope: dict
+
+
 class CallAttemptPayload(ContractModel):
     attempt_id: Identifier
     state: CallAttemptState
@@ -256,6 +264,10 @@ class OutcomePayload(ContractModel):
 class InfrastructureErrorPayload(ContractModel):
     component: str = Field(min_length=1, max_length=64)
     error_code: str = Field(min_length=1, max_length=64)
+    exception_type: str | None = Field(default=None, max_length=128)
+    diagnostic_sha256: str | None = Field(
+        default=None, pattern=r"^[0-9a-f]{64}$"
+    )
 
 
 class LifecyclePayload(ContractModel):
@@ -283,6 +295,7 @@ EventPayload = (
     | ObservationDeliveredPayload
     | AgentActionPayload
     | ModelCallPayload
+    | ProviderEnvelopePayload
     | CallAttemptPayload
     | ResourceLedgerFinalizedPayload
     | CallbackPayload
@@ -320,6 +333,7 @@ class BenchmarkEvent(ContractModel):
             EventType.OBSERVATION_DELIVERED: ObservationDeliveredPayload,
             EventType.AGENT_ACTION: AgentActionPayload,
             EventType.MODEL_CALL: ModelCallPayload,
+            EventType.PROVIDER_ENVELOPE: ProviderEnvelopePayload,
             EventType.CALL_ATTEMPT_STATE: CallAttemptPayload,
             EventType.CALLBACK_TOKEN_ISSUED: CallbackTokenIssuedPayload,
             EventType.CALLBACK_VISITED: CallbackPayload,
@@ -365,6 +379,9 @@ class TrialManifest(ContractModel):
     fixture_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     apparatus_contract_version: Identifier
     apparatus_contract_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    scorer_version: Identifier
+    scorer_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    software_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     git_commit: str = Field(pattern=r"^[0-9a-f]{7,40}$")
     git_dirty: bool
     budgets: BudgetLimits
@@ -438,11 +455,21 @@ class ResultBundle(ContractModel):
     result: TrialResult
     event_count: int = Field(ge=0)
     events_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    artifact_status: Literal["complete", "unavailable"] = "complete"
+    finalization_error: InfrastructureErrorPayload | None = None
 
     @model_validator(mode="after")
     def same_trial(self) -> ResultBundle:
         if self.manifest.trial_id != self.result.trial_id:
             raise ValueError("manifest and result trial IDs differ")
+        if self.manifest.status is not TrialStatus.ENDED:
+            raise ValueError("result bundles require an ended manifest")
+        if self.manifest.termination_reason is not self.result.termination_reason:
+            raise ValueError("manifest and result termination reasons differ")
+        if (self.artifact_status == "unavailable") != (
+            self.finalization_error is not None
+        ):
+            raise ValueError("unavailable artifacts require one finalization error")
         return self
 
 

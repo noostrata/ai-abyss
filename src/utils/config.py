@@ -171,6 +171,19 @@ class AppConfig(BaseModel):
     admin: AdminConfig = Field(default_factory=AdminConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
 
+    @model_validator(mode="after")
+    def benchmark_ports_match_bound_server(self) -> AppConfig:
+        if self.benchmark.enabled:
+            configured_ports = {
+                urlsplit(self.benchmark.local_base_url).port,
+                urlsplit(self.benchmark.callback_base_url).port,
+            }
+            if configured_ports != {self.server.port}:
+                raise ValueError(
+                    "benchmark and callback ports must match the bound server port"
+                )
+        return self
+
 
 def resolve_config_path(path: str | Path | None = None) -> Path:
     """Resolve explicit path, ignored local override, then checked-in default."""

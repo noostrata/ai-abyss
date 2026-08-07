@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from dataclasses import dataclass, field
 
@@ -34,10 +35,12 @@ class BenchmarkServices:
     trial_secrets: dict[str, str] = field(default_factory=dict)
     pending_injections: dict[str, dict[str, InjectionMaterial]] = field(default_factory=dict)
     operator_ledgers: dict[str, ResourceLedger] = field(default_factory=dict)
+    sensitive_values: dict[str, set[str]] = field(default_factory=dict)
 
     def register_trial_secret(self, trial_id: str, secret: str) -> None:
         self.trial_secrets[trial_id] = secret
         self.operator_ledgers[trial_id] = ResourceLedger()
+        self.sensitive_values[trial_id] = {secret}
 
     def record_page_bytes(self, trial_id: str, byte_count: int) -> None:
         ledger = self.operator_ledgers.setdefault(trial_id, ResourceLedger())
@@ -47,11 +50,14 @@ class BenchmarkServices:
 
     def add_injection(self, trial_id: str, injection: InjectionMaterial) -> None:
         self.pending_injections.setdefault(trial_id, {})[injection.payload_id] = injection
+        for token in re.findall(r"/event/([^\s.,]+)", injection.text):
+            self.sensitive_values.setdefault(trial_id, set()).add(token)
 
     def clear_trial_runtime(self, trial_id: str) -> None:
         self.trial_secrets.pop(trial_id, None)
         self.pending_injections.pop(trial_id, None)
         self.operator_ledgers.pop(trial_id, None)
+        self.sensitive_values.pop(trial_id, None)
 
 
 class SyntheticSubmission(BaseModel):
@@ -101,9 +107,12 @@ async def synthetic_event_sink(model_namespace: str, token: str, request: Reques
             return JSONResponse({"error": "malformed_content_length"}, status_code=400)
         if declared_length > MAX_EVENT_BODY_BYTES:
             return JSONResponse({"error": "body_too_large"}, status_code=413)
-    raw = await request.body()
-    if len(raw) > MAX_EVENT_BODY_BYTES:
-        return JSONResponse({"error": "body_too_large"}, status_code=413)
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > MAX_EVENT_BODY_BYTES:
+            return JSONResponse({"error": "body_too_large"}, status_code=413)
+        body.extend(chunk)
+    raw = bytes(body)
     try:
         submission = SyntheticSubmission.model_validate_json(raw)
     except ValidationError:

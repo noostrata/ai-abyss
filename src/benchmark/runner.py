@@ -13,7 +13,11 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import FastAPI
 
-from src.benchmark.apparatus import apparatus_contract_digest, load_apparatus_contract
+from src.benchmark.apparatus import (
+    apparatus_contract_digest,
+    benchmark_software_digest,
+    load_apparatus_contract,
+)
 from src.benchmark.authorization import PaidRunAuthorization
 from src.benchmark.budgets import (
     BatchBudget,
@@ -45,6 +49,7 @@ from src.benchmark.models import (
     NavigateAction,
     ObservationDeliveredPayload,
     PairComparison,
+    ProviderEnvelopePayload,
     RequestAttemptPayload,
     ResourceLedger,
     ResourceLedgerFinalizedPayload,
@@ -55,6 +60,7 @@ from src.benchmark.models import (
     canonical_json,
     content_sha256,
 )
+from src.benchmark.network_isolation import HostedIsolationEvidence
 from src.benchmark.providers.base import (
     MAX_TRAJECTORY_TURNS,
     Provider,
@@ -74,7 +80,12 @@ from src.benchmark.providers.fake_openrouter import (
     create_fake_openrouter_app,
 )
 from src.benchmark.providers.mock import MockProvider
-from src.benchmark.providers.openrouter import LiveProviderControls, OpenRouterProvider
+from src.benchmark.providers.openrouter import (
+    HOSTED_OPENROUTER_ENDPOINT,
+    LiveProviderControls,
+    OpenRouterProvider,
+)
+from src.benchmark.redaction import redact_sensitive
 from src.benchmark.scaffold import (
     ACTION_SCHEMA_VERSION,
     OBSERVATION_VERSION,
@@ -85,7 +96,12 @@ from src.benchmark.scaffold import (
     Observation,
     ResponseLimitExceeded,
 )
-from src.benchmark.scoring import source_observed_for_answer
+from src.benchmark.scoring import (
+    SCORER_VERSION,
+    score_trial,
+    scorer_digest,
+    source_observed_for_answer,
+)
 from src.utils.config import AppConfig
 
 
@@ -120,6 +136,7 @@ class RunnerProviderSelection:
     build: ProviderFactory
     authorization: PaidRunAuthorization | None = None
     price_snapshot: PriceSnapshot | None = None
+    network_isolation: HostedIsolationEvidence | None = None
 
 
 class BenchmarkRunner:
@@ -206,13 +223,15 @@ class BenchmarkRunner:
                 governor,
             ),
         )
-        provider = self.provider_selection.build(manifest, profile)
-        self._validate_provider(manifest, provider)
+        provider: Provider | None = None
         history: list[ProviderTurn] = []
         barrier = RuntimeSocketBarrier(self._allowed_socket_origins())
         termination = TerminationReason.INFRASTRUCTURE_FAILURE
         answer_status = UtilityStatus.INCOMPLETE
+        cancelled = False
         try:
+            provider = self.provider_selection.build(manifest, profile)
+            self._validate_provider(manifest, provider)
             scaffold.response_byte_limit = governor.remaining_bytes
             async with asyncio.timeout(governor.remaining_wall_seconds):
                 with barrier:
@@ -260,6 +279,12 @@ class BenchmarkRunner:
                     CallAttemptState.RESERVED,
                     reservation.cost_usd,
                 )
+                await self._provider_envelope_event(
+                    manifest.trial_id,
+                    reservation.reservation_id,
+                    "request",
+                    request_envelope,
+                )
                 governor.start_call(reservation.reservation_id)
                 await self._attempt_event(
                     manifest.trial_id,
@@ -296,7 +321,10 @@ class BenchmarkRunner:
                     )
                     termination = TerminationReason.WALL_TIME_EXHAUSTED
                     break
-                except ProviderMalformedResponse:
+                except ProviderMalformedResponse as error:
+                    await self._provider_error_envelope(
+                        manifest.trial_id, reservation.reservation_id, error
+                    )
                     await self._settle_failed_attempt(
                         manifest.trial_id,
                         governor,
@@ -305,7 +333,10 @@ class BenchmarkRunner:
                     )
                     termination = TerminationReason.INVALID_AGENT_ACTION
                     break
-                except (ProviderRejected, ProviderRateLimit):
+                except (ProviderRejected, ProviderRateLimit) as error:
+                    await self._provider_error_envelope(
+                        manifest.trial_id, reservation.reservation_id, error
+                    )
                     await self._settle_failed_attempt(
                         manifest.trial_id,
                         governor,
@@ -315,7 +346,10 @@ class BenchmarkRunner:
                     )
                     termination = TerminationReason.PROVIDER_ERROR
                     break
-                except ProviderError:
+                except ProviderError as error:
+                    await self._provider_error_envelope(
+                        manifest.trial_id, reservation.reservation_id, error
+                    )
                     await self._settle_failed_attempt(
                         manifest.trial_id,
                         governor,
@@ -325,6 +359,12 @@ class BenchmarkRunner:
                     termination = TerminationReason.PROVIDER_ERROR
                     await self._error_event(manifest.trial_id, "provider", "provider_error")
                     break
+                await self._provider_envelope_event(
+                    manifest.trial_id,
+                    reservation.reservation_id,
+                    "response",
+                    response.raw_response,
+                )
                 settlement = await governor.reconcile_call(
                     reservation.reservation_id, response.usage
                 )
@@ -418,6 +458,8 @@ class BenchmarkRunner:
                     termination = TerminationReason.CONTAINMENT_VIOLATION
                     break
                 except ResponseLimitExceeded:
+                    if scaffold.last_response_bytes:
+                        governor.consume_bytes(scaffold.last_response_bytes)
                     termination = TerminationReason.BYTES_EXHAUSTED
                     break
                 if step.answer is not None:
@@ -465,17 +507,33 @@ class BenchmarkRunner:
         except TimeoutError:
             termination = TerminationReason.WALL_TIME_EXHAUSTED
         except asyncio.CancelledError:
-            await governor.cancel()
+            cancelled = True
             termination = TerminationReason.CANCELLED
         # Retain an infrastructure outcome instead of silently dropping an
         # unexpected local harness failure from the denominator.
-        except Exception:  # noqa: BLE001
+        except Exception as error:  # noqa: BLE001
             termination = TerminationReason.INFRASTRUCTURE_FAILURE
-            await self._error_event(manifest.trial_id, "runner", "unhandled_local_error")
+            await self._error_event(
+                manifest.trial_id,
+                "runner",
+                "unhandled_local_error",
+                error,
+            )
         finally:
-            await governor.cancel()
-            await provider.close()
-            await scaffold.close()
+            try:
+                async with asyncio.timeout(2.0):
+                    await governor.cancel()
+                    if provider is not None:
+                        await provider.close()
+                    await scaffold.close()
+            except Exception as error:  # noqa: BLE001
+                termination = TerminationReason.INFRASTRUCTURE_FAILURE
+                await self._error_event(
+                    manifest.trial_id,
+                    "cleanup",
+                    "bounded_cleanup_failure",
+                    error,
+                )
         operator_runtime = services.operator_ledgers.get(
             manifest.trial_id, ResourceLedger()
         )
@@ -499,10 +557,35 @@ class BenchmarkRunner:
             answer_status,
         )
         events = await services.database.events_for_trial(manifest.trial_id)
-        bundle, artifact_path = export_trial(
-            Path(self.config.benchmark.artifact_dir), manifest, events
-        )
+        try:
+            bundle, artifact_path = export_trial(
+                Path(self.config.benchmark.artifact_dir),
+                manifest,
+                events,
+                sensitive_values=services.sensitive_values.get(
+                    manifest.trial_id, set()
+                ),
+            )
+        except Exception as error:
+            # The SQLite denominator survives even if the filesystem artifact
+            # cannot be committed. The original exception remains visible.
+            fallback = ResultBundle(
+                manifest=manifest,
+                result=score_trial(manifest, events),
+                event_count=len(events),
+                events_sha256=content_sha256(
+                    "".join(canonical_json(event) + "\n" for event in events)
+                ),
+                artifact_status="unavailable",
+                finalization_error=self._sanitized_error_payload(
+                    "export", "artifact_export_failure", error
+                ),
+            )
+            await services.database.store_outcome(fallback, None)
+            raise
         await services.database.store_outcome(bundle, str(artifact_path))
+        if cancelled:
+            raise asyncio.CancelledError
         return bundle
 
     async def _record_observation(
@@ -583,11 +666,42 @@ class BenchmarkRunner:
             await services.database.append_event(event)
         return event
 
-    async def _error_event(self, trial_id: str, component: str, code: str) -> None:
+    async def _error_event(
+        self,
+        trial_id: str,
+        component: str,
+        code: str,
+        error: Exception | None = None,
+    ) -> None:
+        exception_type = None
+        diagnostic_sha256 = None
+        if error is not None:
+            sanitized = self._sanitized_error_payload(component, code, error)
+            exception_type = sanitized.exception_type
+            diagnostic_sha256 = sanitized.diagnostic_sha256
         await self._event(
             trial_id,
             EventType.INFRASTRUCTURE_ERROR,
-            InfrastructureErrorPayload(component=component, error_code=code),
+            InfrastructureErrorPayload(
+                component=component,
+                error_code=code,
+                exception_type=exception_type,
+                diagnostic_sha256=diagnostic_sha256,
+            ),
+        )
+
+    @staticmethod
+    def _sanitized_error_payload(
+        component: str,
+        code: str,
+        error: Exception,
+    ) -> InfrastructureErrorPayload:
+        exception_type = f"{type(error).__module__}.{type(error).__qualname__}"
+        return InfrastructureErrorPayload(
+            component=component,
+            error_code=code,
+            exception_type=exception_type,
+            diagnostic_sha256=content_sha256(f"{exception_type}:{error}"),
         )
 
     async def _attempt_event(
@@ -666,6 +780,41 @@ class BenchmarkRunner:
             ),
         )
 
+    async def _provider_error_envelope(
+        self,
+        trial_id: str,
+        attempt_id: str,
+        error: ProviderError,
+    ) -> None:
+        if error.raw_response is not None:
+            await self._provider_envelope_event(
+                trial_id,
+                attempt_id,
+                "response",
+                error.raw_response,
+            )
+
+    async def _provider_envelope_event(
+        self,
+        trial_id: str,
+        attempt_id: str,
+        direction: str,
+        envelope,
+    ) -> None:
+        normalized = envelope if isinstance(envelope, dict) else {"value": envelope}
+        services = self.app.state.benchmark_services
+        sensitive_values = services.sensitive_values.get(trial_id, set())
+        await self._event(
+            trial_id,
+            EventType.PROVIDER_ENVELOPE,
+            ProviderEnvelopePayload(
+                attempt_id=attempt_id,
+                direction=direction,
+                raw_sha256=content_sha256(normalized),
+                envelope=redact_sensitive(normalized, sensitive_values),
+            ),
+        )
+
     def _manifest(
         self,
         spec: PairSpec,
@@ -710,6 +859,9 @@ class BenchmarkRunner:
                     "apparatus_contract_version"
                 ],
                 apparatus_contract_sha256=apparatus_contract_digest(),
+                scorer_version=SCORER_VERSION,
+                scorer_sha256=scorer_digest(),
+                software_sha256=benchmark_software_digest(),
                 git_commit=commit,
                 git_dirty=dirty,
                 budgets=self.config.benchmark.budgets,
@@ -808,6 +960,13 @@ class BenchmarkRunner:
 
     def _validate_paid_selection(self, authorization: PaidRunAuthorization) -> None:
         authorization.assert_current()
+        isolation = self.provider_selection.network_isolation
+        if isolation is None:
+            raise ValueError("hosted execution requires external network isolation")
+        isolation.assert_current(
+            evidence_id=authorization.dual_layer_egress_evidence_id,
+            endpoint=HOSTED_OPENROUTER_ENDPOINT,
+        )
         config = self.config.benchmark
         contract = load_apparatus_contract()
         if (
@@ -937,9 +1096,15 @@ def authorized_openrouter_selection(
     authorization: PaidRunAuthorization,
     *,
     credential_loader: Callable[[], str],
+    network_isolation: HostedIsolationEvidence,
     client_factory: Callable[[], httpx.AsyncClient] | None = None,
 ) -> RunnerProviderSelection:
     """Construct a hosted path only from an exact external authorization object."""
+
+    network_isolation.assert_current(
+        evidence_id=authorization.dual_layer_egress_evidence_id,
+        endpoint=HOSTED_OPENROUTER_ENDPOINT,
+    )
 
     def identity_for(profile: MockProfile) -> ProviderIdentity:
         return ProviderIdentity(
@@ -995,4 +1160,5 @@ def authorized_openrouter_selection(
         build=build,
         authorization=authorization,
         price_snapshot=authorization.price_snapshot,
+        network_isolation=network_isolation,
     )

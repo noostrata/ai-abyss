@@ -98,7 +98,11 @@ class TrialRegistry:
                 event_type=EventType.TRIAL_STARTED,
                 payload=LifecyclePayload(status=TrialStatus.RUNNING),
             )
-            await self.database.update_trial(manifest, event)
+            await self.database.update_trial(
+                manifest,
+                event,
+                expected_status=TrialStatus.CREATED.value,
+            )
         return manifest
 
     async def end(
@@ -126,5 +130,9 @@ class TrialRegistry:
                 utility_status=utility_status,
             ),
         )
-        await self.database.update_trial(manifest, event)
+        await self.database.update_trial(
+            manifest,
+            event,
+            expected_status=TrialStatus.RUNNING.value,
+        )
         return manifest

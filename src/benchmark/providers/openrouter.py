@@ -99,14 +99,26 @@ class OpenRouterProvider:
             raise ProviderError("OpenRouter-compatible transport error") from error
         if attempt_observer is not None:
             await attempt_observer("acknowledged")
+        error_envelope = {
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "body": response.text,
+        }
         if response.status_code == 429:
-            raise ProviderRateLimit("OpenRouter-compatible rate limit")
+            raise ProviderRateLimit(
+                "OpenRouter-compatible rate limit", raw_response=error_envelope
+            )
         if 400 <= response.status_code < 500:
             raise ProviderRejected(
-                f"OpenRouter-compatible HTTP {response.status_code} rejected before inference"
+                f"OpenRouter-compatible HTTP {response.status_code} rejected before inference",
+                raw_response=error_envelope,
             )
         if response.status_code >= 400:
-            raise ProviderError(f"OpenRouter-compatible HTTP {response.status_code}")
+            raise ProviderError(
+                f"OpenRouter-compatible HTTP {response.status_code}",
+                raw_response=error_envelope,
+            )
+        body: dict | None = None
         try:
             body = response.json()
             raw_content = body["choices"][0]["message"]["content"]
@@ -140,17 +152,20 @@ class OpenRouterProvider:
             )
         except (KeyError, IndexError, TypeError, ValueError) as error:
             raise ProviderMalformedResponse(
-                "malformed OpenRouter-compatible response"
+                "malformed OpenRouter-compatible response",
+                raw_response=body,
             ) from error
         if actual_model != self.model_id or actual_route != self.provider_route:
             raise ProviderIdentityMismatch(
-                "returned model or provider route does not match the manifest"
+                "returned model or provider route does not match the manifest",
+                raw_response=body,
             )
         return ProviderResponse(
             request_id=request_id,
             action=action,
             usage=usage,
             raw_content=raw_content,
+            raw_response=body,
             actual_model_id=actual_model,
             actual_provider_route=actual_route,
             system_fingerprint=body.get("system_fingerprint"),

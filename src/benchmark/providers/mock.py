@@ -47,7 +47,15 @@ class MockProvider:
         if attempt_observer is not None:
             await attempt_observer("acknowledged")
         if self.profile is MockProfile.INVALID_ACTION:
-            raise ProviderMalformedResponse("deterministic invalid action")
+            raise ProviderMalformedResponse(
+                "deterministic invalid action",
+                raw_response={
+                    "id": f"mock-request-{self.call_count}",
+                    "model": self.model_id,
+                    "provider": self.provider_route,
+                    "choices": [{"message": {"content": "{invalid-action"}}],
+                },
+            )
         action = choose_mock_action(self.profile, request.trajectory)
         raw = canonical_json(action)
         prompt_tokens = max(1, len(canonical_json(self.request_envelope(request)).encode()) // 4)
@@ -63,6 +71,13 @@ class MockProvider:
             action=action,
             usage=usage,
             raw_content=raw,
+            raw_response={
+                "id": f"mock-request-{self.call_count}",
+                "model": self.model_id,
+                "provider": self.provider_route,
+                "choices": [{"message": {"content": raw}}],
+                "usage": usage.model_dump(mode="json"),
+            },
             actual_model_id=self.model_id,
             actual_provider_route=self.provider_route,
             system_fingerprint="deterministic-mock-v1",

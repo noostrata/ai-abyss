@@ -9,6 +9,7 @@ import json
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 from src.benchmark.conditions import InjectionMaterial
 from src.benchmark.enums import Condition, EventType
@@ -35,7 +36,17 @@ class ConsumedEvent:
 
 class TrialEventSink:
     def __init__(self, database: BenchmarkDB, base_url: str, signing_secret: bytes | None = None) -> None:
-        if not base_url.startswith(("http://127.0.0.1", "http://localhost")):
+        parts = urlsplit(base_url)
+        if (
+            parts.scheme != "http"
+            or parts.hostname not in {"127.0.0.1", "localhost"}
+            or parts.port is None
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+            or parts.path not in {"", "/"}
+        ):
             raise ValueError("event sink base URL must be trusted loopback configuration")
         self.database = database
         self.base_url = base_url.rstrip("/")

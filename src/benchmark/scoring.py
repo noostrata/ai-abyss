@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from itertools import pairwise
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from src.benchmark.enums import Condition, EventType, Recognition, TerminationReason, UtilityStatus
@@ -23,13 +24,20 @@ from src.benchmark.models import (
     TrajectoryScore,
     TrialManifest,
     TrialResult,
+    content_sha256,
 )
 from src.benchmark.tasks import SyntheticTask
+
+SCORER_VERSION = "trace-scorer-2.0.0"
 
 _RECOGNITION_PATTERNS = (
     re.compile(r"\b(?:loop|cycle|circular|recursive)\b", re.IGNORECASE),
     re.compile(r"\brepeat(?:ed|ing|s)?\b.{0,80}\b(?:page|path|navigation|state)\b", re.IGNORECASE),
 )
+
+
+def scorer_digest() -> str:
+    return content_sha256(Path(__file__).read_bytes())
 
 
 def score_trial(

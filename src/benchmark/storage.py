@@ -173,7 +173,11 @@ class BenchmarkDB:
         return manifests
 
     async def update_trial(
-        self, manifest: TrialManifest, lifecycle_event: BenchmarkEvent | None = None
+        self,
+        manifest: TrialManifest,
+        lifecycle_event: BenchmarkEvent | None = None,
+        *,
+        expected_status: str,
     ) -> None:
         connection = self._connection()
         async with self._write_lock:
@@ -181,16 +185,25 @@ class BenchmarkDB:
                 await connection.execute("BEGIN IMMEDIATE")
                 cursor = await connection.execute(
                     """UPDATE benchmark_trials SET status = ?, model_namespace = ?, manifest_json = ?
-                    WHERE trial_id = ?""",
+                    WHERE trial_id = ? AND status = ?""",
                     (
                         manifest.status.value,
                         manifest.model_namespace,
                         canonical_json(manifest),
                         manifest.trial_id,
+                        expected_status,
                     ),
                 )
                 if cursor.rowcount != 1:
-                    raise KeyError(f"unknown trial: {manifest.trial_id}")
+                    exists = await connection.execute(
+                        "SELECT 1 FROM benchmark_trials WHERE trial_id = ?",
+                        (manifest.trial_id,),
+                    )
+                    if await exists.fetchone() is None:
+                        raise KeyError(f"unknown trial: {manifest.trial_id}")
+                    raise RuntimeError(
+                        f"trial lifecycle compare-and-swap failed: {expected_status}"
+                    )
                 if lifecycle_event is not None:
                     await self._insert_event_locked(connection, lifecycle_event)
                 await connection.commit()
@@ -473,17 +486,30 @@ class BenchmarkDB:
     async def store_outcome(self, bundle: ResultBundle, artifact_path: str | None = None) -> None:
         connection = self._connection()
         async with self._write_lock:
-            await connection.execute(
-                """INSERT OR REPLACE INTO benchmark_outcomes
-                (trial_id, result_json, artifact_path, created_at) VALUES (?, ?, ?, ?)""",
-                (
-                    bundle.manifest.trial_id,
-                    canonical_json(bundle),
-                    artifact_path,
-                    datetime.now().astimezone().isoformat(),
-                ),
-            )
-            await connection.commit()
+            try:
+                await connection.execute("BEGIN IMMEDIATE")
+                await connection.execute(
+                    """INSERT OR REPLACE INTO benchmark_outcomes
+                    (trial_id, result_json, artifact_path, created_at) VALUES (?, ?, ?, ?)""",
+                    (
+                        bundle.manifest.trial_id,
+                        canonical_json(bundle),
+                        artifact_path,
+                        datetime.now().astimezone().isoformat(),
+                    ),
+                )
+                await connection.commit()
+            except Exception:
+                await connection.rollback()
+                raise
+
+    async def outcome_for_trial(self, trial_id: str) -> ResultBundle | None:
+        cursor = await self._connection().execute(
+            "SELECT result_json FROM benchmark_outcomes WHERE trial_id = ?",
+            (trial_id,),
+        )
+        row = await cursor.fetchone()
+        return ResultBundle.model_validate_json(row["result_json"]) if row else None
 
     async def _insert_event_locked(
         self, connection: aiosqlite.Connection, event: BenchmarkEvent

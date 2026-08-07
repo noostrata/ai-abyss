@@ -7,6 +7,8 @@ from src.benchmark.apparatus import apparatus_contract_digest, load_apparatus_co
 from src.benchmark.authorization import PaidRunAuthorization
 from src.benchmark.budgets import BatchBudget, PriceSnapshot
 from src.benchmark.enums import Condition, ExecutionMode, MockProfile
+from src.benchmark.network_isolation import HostedIsolationEvidence
+from src.benchmark.providers.openrouter import HOSTED_OPENROUTER_ENDPOINT
 from src.benchmark.runner import (
     BenchmarkRunner,
     PairSpec,
@@ -77,6 +79,20 @@ def _live_config() -> object:
     return config
 
 
+def _isolation(authorization: PaidRunAuthorization) -> HostedIsolationEvidence:
+    now = datetime.now(UTC)
+    return HostedIsolationEvidence(
+        evidence_id=authorization.dual_layer_egress_evidence_id,
+        enforcement_kind="dedicated_proxy",
+        authorized_endpoint=HOSTED_OPENROUTER_ENDPOINT,
+        activated_at=now - timedelta(minutes=1),
+        expires_at=now + timedelta(minutes=10),
+        policy_sha256="2" * 64,
+        allowed_probe_evidence_sha256="3" * 64,
+        blocked_probe_evidence_sha256="4" * 64,
+    )
+
+
 async def test_authorized_factory_is_inert_until_exact_clean_commit(benchmark_app):
     credential_loaded = False
 
@@ -93,6 +109,7 @@ async def test_authorized_factory_is_inert_until_exact_clean_commit(benchmark_ap
         provider_selection=authorized_openrouter_selection(
             authorization,
             credential_loader=credential_loader,
+            network_isolation=_isolation(authorization),
             client_factory=lambda: httpx.AsyncClient(
                 transport=httpx.MockTransport(
                     lambda request: pytest.fail("hosted transport must remain unused")
@@ -126,6 +143,7 @@ def test_authorized_factory_rejects_budget_or_identity_drift(benchmark_app):
             provider_selection=authorized_openrouter_selection(
                 authorization,
                 credential_loader=lambda: "unused",
+                network_isolation=_isolation(authorization),
             ),
         )
 
@@ -142,3 +160,16 @@ def test_authorization_rejects_expiry_route_and_cap_incoherence():
         )
     with pytest.raises(ValueError, match="batch cap"):
         _authorization(trial_cost_cap_usd=3)
+
+
+def test_hosted_factory_requires_current_external_isolation_evidence():
+    authorization = _authorization()
+    expired = _isolation(authorization).model_copy(
+        update={"expires_at": datetime.now(UTC) - timedelta(seconds=1)}
+    )
+    with pytest.raises(ValueError, match="isolation evidence"):
+        authorized_openrouter_selection(
+            authorization,
+            credential_loader=lambda: "unused",
+            network_isolation=expired,
+        )

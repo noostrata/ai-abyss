@@ -17,6 +17,8 @@ from src.benchmark.models import (
     AGENT_ACTION_ADAPTER,
     ObservationDeliveredPayload,
     ResourceLedger,
+    ResultBundle,
+    canonical_json,
 )
 from src.benchmark.providers.base import (
     PaidExecutionRefused,
@@ -638,6 +640,127 @@ async def test_runner_clears_trial_runtime_when_trial_setup_fails(
     services = benchmark_app.state.benchmark_services
     assert services.trial_secrets == {}
     assert services.pending_injections == {}
+
+
+async def test_provider_construction_failure_is_retained_with_sanitized_diagnostic(
+    benchmark_app, tmp_path
+):
+    def fail_build(manifest, profile):
+        raise RuntimeError("synthetic constructor detail")
+
+    selection = RunnerProviderSelection(
+        identity_for=lambda profile: ProviderIdentity(
+            name="mock",
+            model_id=f"mock/{profile.value}-v1",
+            provider_route="mock-local-no-network",
+            execution_boundary="local_mock",
+        ),
+        build=fail_build,
+    )
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    bundles = await BenchmarkRunner(
+        benchmark_app,
+        config,
+        provider_selection=selection,
+    ).run_pair(
+        PairSpec(
+            pair_id="constructor-failure",
+            condition_a=Condition.CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.TASK_SOLVER,
+            seed=1313,
+            order="AB",
+        )
+    )
+    assert {bundle.result.termination_reason for bundle in bundles.values()} == {
+        TerminationReason.INFRASTRUCTURE_FAILURE
+    }
+    for bundle in bundles.values():
+        events = await benchmark_app.state.benchmark_services.database.events_for_trial(
+            bundle.manifest.trial_id
+        )
+        errors = [
+            event.payload
+            for event in events
+            if event.event_type.value == "infrastructure_error"
+        ]
+        assert errors[0].exception_type == "builtins.RuntimeError"
+        assert len(errors[0].diagnostic_sha256) == 64
+        assert "synthetic constructor detail" not in canonical_json(errors[0])
+
+
+async def test_runner_finalizes_then_reraises_cancellation(benchmark_app, tmp_path):
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    config.benchmark.budgets.wall_clock_seconds = 30
+    runner = BenchmarkRunner(benchmark_app, config)
+    task = asyncio.create_task(
+        runner.run_pair(
+            PairSpec(
+                pair_id="cancelled-retained",
+                condition_a=Condition.CONTROL,
+                condition_b=Condition.RECURSIVE_TRAP,
+                profile=MockProfile.DELAYED,
+                seed=1414,
+                order="AB",
+            )
+        )
+    )
+    database = benchmark_app.state.benchmark_services.database
+    for _ in range(100):
+        cursor = await database._connection().execute(
+            "SELECT COUNT(*) AS count FROM benchmark_events "
+            "WHERE event_type = 'call_attempt_state' "
+            "AND payload_json LIKE '%\"state\":\"sent\"%'"
+        )
+        if int((await cursor.fetchone())["count"]) > 0:
+            break
+        await asyncio.sleep(0.01)
+    else:
+        pytest.fail("delayed provider never reached the sent state")
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    cursor = await database._connection().execute(
+        "SELECT result_json FROM benchmark_outcomes"
+    )
+    rows = await cursor.fetchall()
+    assert len(rows) == 1
+    retained = ResultBundle.model_validate_json(rows[0]["result_json"])
+    assert retained.result.termination_reason is TerminationReason.CANCELLED
+    assert retained.result.model_ledger.billing_unknown_calls == 1
+
+
+async def test_export_failure_retains_explicit_unavailable_artifact_outcome(
+    benchmark_app, tmp_path, monkeypatch
+):
+    def fail_export(*args, **kwargs):
+        raise OSError("synthetic disk detail")
+
+    monkeypatch.setattr("src.benchmark.runner.export_trial", fail_export)
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    runner = BenchmarkRunner(benchmark_app, config)
+    with pytest.raises(OSError, match="synthetic disk"):
+        await runner.run_pair(
+            PairSpec(
+                pair_id="export-failure",
+                condition_a=Condition.CONTROL,
+                condition_b=Condition.RECURSIVE_TRAP,
+                profile=MockProfile.TASK_SOLVER,
+                seed=1515,
+                order="AB",
+            )
+        )
+    cursor = await benchmark_app.state.benchmark_services.database._connection().execute(
+        "SELECT result_json, artifact_path FROM benchmark_outcomes"
+    )
+    row = await cursor.fetchone()
+    retained = ResultBundle.model_validate_json(row["result_json"])
+    assert retained.artifact_status == "unavailable"
+    assert retained.finalization_error.error_code == "artifact_export_failure"
+    assert row["artifact_path"] is None
 
 
 def test_pair_roles_reject_ambiguous_treatment_minus_control():

@@ -36,6 +36,7 @@ class EventType(StrEnum):
     OBSERVATION_DELIVERED = "observation_delivered"
     AGENT_ACTION = "agent_action"
     MODEL_CALL = "model_call"
+    PROVIDER_ENVELOPE = "provider_envelope"
     CALL_ATTEMPT_STATE = "call_attempt_state"
     CALLBACK_TOKEN_ISSUED = "callback_token_issued"
     CALLBACK_VISITED = "callback_visited"

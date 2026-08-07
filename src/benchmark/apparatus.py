@@ -39,6 +39,21 @@ def apparatus_contract_digest() -> str:
     return content_sha256(APPARATUS_CONTRACT_PATH.read_bytes())
 
 
+def benchmark_software_digest() -> str:
+    """Digest the benchmark implementation and its configuration contract."""
+
+    root = Path(__file__).parents[2]
+    paths = sorted((root / "src" / "benchmark").rglob("*.py"))
+    paths.append(root / "src" / "utils" / "config.py")
+    material = bytearray()
+    for path in paths:
+        material.extend(str(path.relative_to(root)).encode())
+        material.extend(b"\0")
+        material.extend(path.read_bytes())
+        material.extend(b"\0")
+    return content_sha256(bytes(material))
+
+
 def apparatus_contract_errors() -> list[str]:
     contract = load_apparatus_contract()
     errors: list[str] = []

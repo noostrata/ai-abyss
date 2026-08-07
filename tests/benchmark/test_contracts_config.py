@@ -89,6 +89,8 @@ def test_configuration_resolution_order(tmp_path, monkeypatch):
 async def test_benchmark_app_uses_resolved_environment_config(tmp_path, monkeypatch):
     chosen = tmp_path / "chosen.yaml"
     chosen.write_text(
+        "server:\n"
+        "  port: 9444\n"
         "benchmark:\n"
         "  local_base_url: http://localhost:9444\n"
         "  callback_base_url: http://localhost:9444\n"
@@ -99,6 +101,17 @@ async def test_benchmark_app_uses_resolved_environment_config(tmp_path, monkeypa
     app = create_benchmark_app()
     async with LifespanManager(app):
         assert app.state.benchmark_services.event_sink.base_url == "http://localhost:9444"
+
+
+def test_benchmark_urls_must_match_the_bound_server_port():
+    with pytest.raises(ValidationError, match="bound server port"):
+        AppConfig(
+            server={"port": 8443},
+            benchmark={
+                "local_base_url": "http://127.0.0.1:9444",
+                "callback_base_url": "http://127.0.0.1:9444",
+            },
+        )
 
 
 def test_manifest_event_and_result_round_trip():

@@ -215,6 +215,7 @@ class AgentScaffold:
         if method not in {"GET", "POST"}:
             raise ValueError("unsupported method")
         url = self.egress.validate(target, self.current_url)
+        self.last_response_bytes = 0
         previous = self.current_url
         for redirect_count in range(self.max_redirects + 1):
             if self.request_guard is not None:
@@ -247,6 +248,7 @@ class AgentScaffold:
                         self.response_byte_limit is not None
                         and len(content) + len(chunk) > self.response_byte_limit
                     ):
+                        self.last_response_bytes = len(content)
                         raise ResponseLimitExceeded("stream exceeds remaining byte budget")
                     content.extend(chunk)
                 parsed_response = httpx.Response(
