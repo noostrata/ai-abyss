@@ -1,13 +1,13 @@
 {
   "apparatus_contract_sha256": "d0a25dc2043ee0fb88ac3323b5dcdd464f685b8a9047029a3751a41749185edf",
   "apparatus_contract_version": "1.6.0",
-  "benchmark_software_sha256": "03b48cfd37faf0e735174ee9531b4c771926b5406bb671a9b7dc73d3b1169c88",
+  "benchmark_software_sha256": "afa43011a77a3c3cf805b96d8ce3792313eaff8286df8efd772c045c0fa299ff",
   "checks": {
     "artifact_corruption": {
       "command": "uv run pytest -q tests/benchmark/test_artifact_integrity.py",
-      "output_sha256": "7a76faf05e107c11b2812cc294a3ef71294a24c7005a71e386bf8497b9192f72",
+      "output_sha256": "faad2a048f066402d263a731e67182173f50486382c58da46a5fbfff30212c04",
       "status": "passed",
-      "stdout": "........                                                                 [100%]\n8 passed in 1.12s\n"
+      "stdout": "........                                                                 [100%]\n8 passed in 1.02s\n"
     },
     "budget_and_containment": {
       "command": "uv run pytest -q tests/benchmark/test_scaffold_egress_budget.py",
@@ -24,17 +24,17 @@
         },
         "fake_provider_rehearsal": {
           "command": "uv run ai-abyss-benchmark fake-provider-rehearsal",
-          "output_sha256": "a282e9fc6cd29d8f4303309ca5eec1c57ce7c0e3256a4a5c9445c6009af38057",
+          "output_sha256": "32828e78f1136a21f7c641500ae17dfa621474df924f8ad539d0a02d34803e8e",
           "status": "passed"
         },
         "full_suite": {
           "command": "uv run pytest -q",
-          "output_sha256": "5007de08fdb96a03e08466dfe58724892ffb175bff6ec91564742f82b4d7b7b6",
+          "output_sha256": "0b8af6121261021d1ed22c0414904895608a4da176bb4d353ebf31f8a77912a9",
           "status": "passed"
         },
         "mock_rehearsal": {
           "command": "uv run ai-abyss-benchmark mock-rehearsal",
-          "output_sha256": "9c3839bfa03f7b4eaec7233a49ea6413cc6f2ca0064871407a23492a7499bdbf",
+          "output_sha256": "c56d4f5e93890e5f9cc74f7964af80ffdbcf82df12174fa222c99b3449e5f275",
           "status": "passed"
         },
         "ruff": {
@@ -44,12 +44,12 @@
         },
         "sync": {
           "command": "uv sync --locked --extra dev",
-          "output_sha256": "577d896e881fd4ab45726dc83e87f1701c65e0e94f4a2f1422b5b4b74f833dde",
+          "output_sha256": "38bf60796c92a2b52fa42b6e59c91ba020eddfcd149a4e6006941469b84810f5",
           "status": "passed"
         }
       },
       "status": "passed",
-      "tested_commit": "80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df",
+      "tested_commit": "15beb12f5aa491dee1f2d451c20e98fe6db0f7ba",
       "worktree_clean_after_commands": true
     },
     "drift": {
@@ -60,34 +60,34 @@
     },
     "fake_provider_rehearsal": {
       "command": "uv run ai-abyss-benchmark fake-provider-rehearsal",
-      "output_sha256": "5870d45c45bb5a6a3afd3e42c95a6f3175b3fb3b4e41c8cad2c67308c3478cb6",
+      "output_sha256": "a58c2f69130a7ab23a38ddc3409d413d59d87cd00a18bcfce3340eda31606fa8",
       "pairs": 4,
       "status": "passed",
       "trials": 8
     },
     "full_suite": {
       "command": "uv run pytest -q",
-      "output_sha256": "05d58dee1d63ca38341d030bf14b92d4f36d6ba24df9b8bb3720af4dd51a3d01",
+      "output_sha256": "bb028526429000366f57619b205a8d25dacfa1930d59c53f22dc26ea80412e55",
       "status": "passed",
-      "stdout": "........................................................................ [ 22%]\n........................................................................ [ 44%]\n........................................................................ [ 67%]\n........................................................................ [ 89%]\n..................................                                       [100%]\n322 passed in 5.73s\n"
+      "stdout": "........................................................................ [ 22%]\n........................................................................ [ 44%]\n........................................................................ [ 66%]\n........................................................................ [ 89%]\n...................................                                      [100%]\n323 passed in 6.00s\n"
     },
     "lock": {
       "command": "uv lock --locked",
-      "output_sha256": "abb4f6d9db9745464fbd4ba3c856598646d48ffb457fc428a706dccb122ab4a2",
+      "output_sha256": "9125221b7272dc424bec3aa9359ab4f338154dcf33c19d4c36a4471205bd7a2a",
       "status": "passed",
       "stdout": ""
     },
     "mock_rehearsal": {
       "command": "uv run ai-abyss-benchmark mock-rehearsal",
-      "output_sha256": "a7b9ac154828fbf5eef631ca29a416dbe81f03a98c1d5920426cd7bf0bb1a025",
+      "output_sha256": "2b8239a6aa7bea80b8858da88339745227bd63f30f83af0a68a6f3416585311e",
       "pairs": 18,
       "status": "passed"
     },
     "provider_faults_and_concurrency": {
       "command": "uv run pytest -q tests/benchmark/test_providers_runner.py -k 'boundary or timeout or disconnect or malformed or identity or billing or cancel or concurrent'",
-      "output_sha256": "80d6c7bd2014506c0edcfaf818003908211c325938ea1d2d21b32578575852e8",
+      "output_sha256": "4c10a35b06473c14e089a25e4f6aca3626f7b7285ef9f385ae8ebd6ef9174644",
       "status": "passed",
-      "stdout": "................                                                         [100%]\n16 passed, 27 deselected in 0.59s\n"
+      "stdout": "................                                                         [100%]\n16 passed, 27 deselected in 0.58s\n"
     },
     "ruff": {
       "command": "uv run ruff check src tests",
@@ -97,7 +97,7 @@
     },
     "sync": {
       "command": "uv sync --locked --extra dev",
-      "output_sha256": "15266b83b6ed2577cd0597ab7b977309c4804a90f8fc027a8650375ffed71ccd",
+      "output_sha256": "d1e864af8056e6521dce0856723fdc0c84a6d3ccbe25343290a1cb58edb43c79",
       "status": "passed",
       "stdout": ""
     }
@@ -120,7 +120,7 @@
   "experimental_protocol_id": "honeypot-calibration-v1",
   "experimental_protocol_sha256": "6ada638e2de96ab7d54f762ff6841113131fd632241958d8276e7c4ae98adfce",
   "experimental_protocol_version": "1.0.0",
-  "generated_at": "2026-08-07T22:33:24.328304+00:00",
+  "generated_at": "2026-08-07T22:37:28.515133+00:00",
   "hosted_requests": 0,
   "limitations": [
     "No hosted model or real credential was used.",
@@ -146,6 +146,6 @@
   "scorer_sha256": "5388f9d09aa0626bf59e25d408f170b537a7f92ff23e758e48089817c796cc6a",
   "scorer_version": "trace-scorer-2.0.0",
   "status": "passed",
-  "tested_commit": "80ee9262c259eb73d1a9ed0cf5a96e42eb80b1df",
+  "tested_commit": "15beb12f5aa491dee1f2d451c20e98fe6db0f7ba",
   "tested_worktree_clean": true
 }
