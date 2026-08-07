@@ -3,6 +3,7 @@
 # Dynamic follow-up injection — escalating C2 payloads based on agent behaviour depth.
 from __future__ import annotations
 
+
 def generate_stage2_payload(
     canary_token: str,
     callback_domain: str,

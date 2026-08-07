@@ -9,12 +9,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
+from src.benchmark.api import BenchmarkServices, validate_benchmark_request
+from src.benchmark.api import router as benchmark_router
+from src.benchmark.conditions import ConditionRenderer
+from src.benchmark.event_sink import TrialEventSink
+from src.benchmark.registry import TrialRegistry
+from src.benchmark.storage import BenchmarkDB
 from src.c2 import server as beacon_server
 from src.classifier.engine import ClassificationEngine
 from src.classifier.signals import Classification
-from src.content.templates import AI_TXT, JS_BEACON, ROBOTS_TXT, STYLE_CSS
+from src.content.templates import AI_TXT, ROBOTS_TXT, STYLE_CSS
 from src.killchain.router import KillChainRouter
 from src.telemetry.dashboard import router as dashboard_router
 from src.telemetry.dashboard import set_api_key as dashboard_set_api_key
@@ -23,7 +29,6 @@ from src.telemetry.db import TelemetryDB
 from src.telemetry.logger import log_classification, log_killchain, setup_logging
 from src.utils.config import AppConfig, load_config
 from src.utils.crypto import hash_fingerprint, set_deployment_secret
-
 
 # Honeypot paths listed as Disallow in robots.txt
 HONEYPOT_PATHS = [
@@ -39,7 +44,7 @@ ROBOTS_TXT_WITH_HONEYPOTS = ROBOTS_TXT.rstrip() + "\n\n" + "\n".join(
 ) + "\n\n# Sitemap\nSitemap: /sitemap.xml\n"
 
 
-def create_app(config_path: str = "config.yaml") -> FastAPI:
+def create_app(config_path: str | Path | None = None, *, benchmark_only: bool = False) -> FastAPI:
     config = load_config(config_path)
 
     state: dict = {}
@@ -49,22 +54,33 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         logger = setup_logging(config.telemetry.log_level)
         logger.info("AI Abyss starting up")
 
-        secret = os.environ.get("AI_ABYSS_SECRET", "dev-secret-change-in-production")
-        set_deployment_secret(secret)
-
-        db = TelemetryDB(config.telemetry.db_path)
-        await db.connect()
-        state["db"] = db
-
-        engine = ClassificationEngine(config.classification)
-        state["engine"] = engine
-
-        router = KillChainRouter(config)
-        state["router"] = router
-
-        beacon_server.set_db(db)
-        dashboard_set_db(db)
-        dashboard_set_api_key(config.admin.api_key)
+        db: TelemetryDB | None = None
+        benchmark_db: BenchmarkDB | None = None
+        if benchmark_only:
+            benchmark_db = BenchmarkDB(config.benchmark.db_path)
+            await benchmark_db.connect()
+            benchmark_registry = TrialRegistry(benchmark_db)
+            app.state.benchmark_services = BenchmarkServices(
+                database=benchmark_db,
+                registry=benchmark_registry,
+                renderer=ConditionRenderer(),
+                event_sink=TrialEventSink(
+                    benchmark_db,
+                    config.benchmark.callback_base_url,
+                    os.environ.get("AI_ABYSS_BENCHMARK_SECRET", "").encode() or None,
+                ),
+            )
+        else:
+            secret = os.environ.get("AI_ABYSS_SECRET", "dev-secret-change-in-production")
+            set_deployment_secret(secret)
+            db = TelemetryDB(config.telemetry.db_path)
+            await db.connect()
+            state["db"] = db
+            state["engine"] = ClassificationEngine(config.classification)
+            state["router"] = KillChainRouter(config)
+            beacon_server.set_db(db)
+            dashboard_set_db(db)
+            dashboard_set_api_key(config.admin.api_key)
 
         logger.info(
             "AI Abyss ready — domain=%s port=%d",
@@ -74,7 +90,10 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
 
         yield
 
-        await db.close()
+        if benchmark_db is not None:
+            await benchmark_db.close()
+        if db is not None:
+            await db.close()
         logger.info("AI Abyss shut down")
 
     app = FastAPI(
@@ -86,14 +105,30 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         redoc_url=None,
     )
 
-    app.include_router(beacon_server.router)
-    if config.admin.enabled:
-        app.include_router(dashboard_router)
+    if benchmark_only:
+        if not config.benchmark.enabled:
+            raise ValueError("benchmark application refused: benchmark.enabled is false")
+        app.include_router(benchmark_router)
+    else:
+        app.include_router(beacon_server.router)
+        if config.admin.enabled:
+            app.include_router(dashboard_router)
 
     # Classification middleware
     @app.middleware("http")
     async def classification_middleware(request: Request, call_next):
         path = request.url.path
+
+        if benchmark_only:
+            if not path.startswith("/benchmark/"):
+                return JSONResponse({"error": "benchmark_path_only"}, status_code=404)
+            parts = path.strip("/").split("/")
+            if len(parts) < 3:
+                return JSONResponse({"error": "malformed_benchmark_route"}, status_code=400)
+            validation_error = await validate_benchmark_request(request, parts[1])
+            if validation_error is not None:
+                return validation_error
+            return await call_next(request)
 
         if any(path == p or path.startswith(p + "/") for p in ("/admin", "/callback")):
             return await call_next(request)
@@ -231,6 +266,11 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         )
 
     return app
+
+
+def create_benchmark_app(config_path: str | Path | None = None) -> FastAPI:
+    """Create the isolated local benchmark surface without legacy routes."""
+    return create_app(config_path, benchmark_only=True)
 
 
 def _get_client_ip(request: Request) -> str:

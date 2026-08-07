@@ -47,6 +47,60 @@ condition works. Combining recursion, huge pages, Unicode corruption, false
 facts, slow streaming, and prompt injection in the first experiment would make
 the result uninterpretable.
 
+## Post-implementation MVP status
+
+The register below remains an audit of the original prototype. The pre-paid
+implementation closes or contains the issues needed for the local benchmark;
+it does not silently relabel deferred legacy and public-deployment issues as
+fixed.
+
+Closed for the local benchmark:
+
+- A benchmark-only application, explicit trial registry, exact active-trial
+  path policy, redirect validation, and a separate runtime socket barrier form
+  the trial boundary.
+- Typed task, manifest, event, action, budget, result, pair, export, integrity,
+  and replay contracts now exist with deterministic scoring and matched
+  controls.
+- The legacy C2 behavior is replaced by a bounded synthetic sink with expiring,
+  single-use, exposure-bound tokens and a fresh fake secret for every trial.
+- Request attempts, pages, observations, actions, reservations, model usage,
+  callbacks, lifecycle, outcomes, and termination causes are trial-linked.
+  Lifecycle writes and event sequencing are transactional.
+- Model calls, token categories, actions, HTTP attempts, bytes, unique nodes,
+  depth, hard wall time, and cost have independent stop reasons. Outstanding
+  reservations and per-trial runtime secrets are cleaned on failure.
+- Utility and trap behavior are scored separately. Recognition requires an
+  explicit observable rationale; escape and recovery do not depend on inferred
+  hidden reasoning.
+- The environment is locked, the full legacy-plus-benchmark suite is retained,
+  Ruff is clean, and the mock matrix runs in both orders with no hosted call.
+
+Contained rather than repaired in the legacy product:
+
+- The incorrect `robots.txt` classifier, spoofable crawler identity, stale
+  classifier state, legacy feature coupling, dashboard claims, and legacy C2
+  design are outside the benchmark application's route and state surface.
+- Legacy public admin, telemetry, proxy, sitemap, tarpit-stream, poisoning, and
+  attribution problems remain relevant if anyone deploys the original product.
+
+Still open at the paid gate:
+
+- There is deliberately no real-model efficacy evidence yet (issue 7). The
+  OpenRouter adapter has only mocked contract evidence. A separately approved
+  pilot must pin the model and provider, current prices, exact trial count,
+  per-trial and batch ceilings, dedicated credential limit, and kill switch.
+- The mock matrix validates measurement behavior, not statistical power,
+  cross-model generality, naturalistic realism, or comparative scientific
+  efficacy.
+
+Deferred after the MVP:
+
+- Public deployment and retention, database migration and scaling, production
+  authentication, held-out/adaptive benchmarks, multiple tasks/models/
+  scaffolds/modalities, latency and volume ablations, combined treatments, and
+  training-ingestion studies remain unsolved until their scopes are opened.
+
 ## Self-DoS and resource-amplification experiment
 
 “Self-DoS” and “making the tested model expensive” are related but distinct.

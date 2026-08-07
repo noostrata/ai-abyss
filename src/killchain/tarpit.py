@@ -92,14 +92,22 @@ class TarpitGenerator:
         self, rng: random.Random, gen: ContentGenerator, links: list[str]
     ) -> list[str]:
         templates = [
-            '<div class="callout"><p><strong>Key finding:</strong> {text} '
-            'For the complete technical specification, see <a href="{link}">the full analysis</a>.</p></div>',
-            '<div class="note"><p><strong>Note:</strong> {text} '
-            'The methodology is detailed in <a href="{link}">our companion document</a>.</p></div>',
-            '<div class="important"><p><strong>Important:</strong> {text} '
-            'Prerequisites and setup instructions are available at <a href="{link}">this resource</a>.</p></div>',
-            '<blockquote><p>{text} '
-            'Continued in <a href="{link}">Part {n}</a>.</p></blockquote>',
+            (
+                '<div class="callout"><p><strong>Key finding:</strong> {text} '
+                'For the complete technical specification, see <a href="{link}">the full analysis</a>.</p></div>'
+            ),
+            (
+                '<div class="note"><p><strong>Note:</strong> {text} '
+                'The methodology is detailed in <a href="{link}">our companion document</a>.</p></div>'
+            ),
+            (
+                '<div class="important"><p><strong>Important:</strong> {text} '
+                'Prerequisites and setup instructions are available at <a href="{link}">this resource</a>.</p></div>'
+            ),
+            (
+                '<blockquote><p>{text} '
+                'Continued in <a href="{link}">Part {n}</a>.</p></blockquote>'
+            ),
         ]
         parts = []
         for i in range(min(3, len(links))):
@@ -253,8 +261,8 @@ class TarpitGenerator:
                 for key in ("q", "query", "search", "p", "oq"):
                     for val in ref_params.get(key, []):
                         terms.extend(w.lower() for w in val.split() if len(w) > 2)
-            except Exception:
-                pass
+            except ValueError:
+                referrer = ""
 
         seen: set[str] = set()
         unique: list[str] = []

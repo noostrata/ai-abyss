@@ -95,7 +95,7 @@ class IPReputationChecker:
             return None
         try:
             return self._maxmind_reader.get(ip_str)  # type: ignore[union-attr]
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             return None
 
     def score(self, ip_str: str) -> tuple[float, IPReputation]:

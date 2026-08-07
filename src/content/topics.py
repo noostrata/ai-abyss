@@ -3,7 +3,7 @@
 # Topic-specific vocabulary — domain knowledge with real entities and contradictable facts.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

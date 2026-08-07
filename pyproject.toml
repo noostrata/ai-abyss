@@ -16,6 +16,10 @@ dependencies = [
     "aiofiles>=24.1.0",
 ]
 
+[project.scripts]
+ai-abyss-benchmark = "src.benchmark.cli:main"
+ai-abyss-benchmark-server = "src.benchmark.server:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",

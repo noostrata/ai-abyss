@@ -25,6 +25,11 @@ Thumbs.db
 
 # Project data (generated at runtime)
 data/telemetry*
+data/benchmark/
+data/benchmark*.db
+data/benchmark*.db-*
+artifacts/benchmark/
+.benchmark-secrets/
 
 # Internal spec (not shipped)
 CLAUDE.md

@@ -66,3 +66,16 @@ telemetry:
 admin:
   enabled: true
   api_key: ""
+
+benchmark:
+  enabled: true
+  execution_mode: "mock"
+  allow_paid: false
+  local_base_url: "http://127.0.0.1:8443"
+  callback_base_url: "http://127.0.0.1:8443"
+  artifact_dir: "./artifacts/benchmark/test"
+  db_path: ":memory:"
+  provider: "mock"
+  model_id: "mock/task-solver-v1"
+  bind_host: "127.0.0.1"
+  admin_enabled: false

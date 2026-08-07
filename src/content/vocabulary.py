@@ -3,9 +3,8 @@
 # Vocabulary bands — large word pools per topic for defeating deduplication via unique distributions.
 from __future__ import annotations
 
-import hashlib
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

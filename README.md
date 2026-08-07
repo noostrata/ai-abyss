@@ -3,7 +3,7 @@ _Three traps for AI crawlers that ignore your no-crawl directives._
 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: AGPL-3.0](https://img.shields.io/github/license/terrorswift/ai-abyss)
-![Tests: 167 passing](https://img.shields.io/badge/tests-167%20passing-brightgreen)
+![Tests: 257 passing](https://img.shields.io/badge/tests-257%20passing-brightgreen)
 ![Status: Proof of Concept](https://img.shields.io/badge/status-proof%20of%20concept-orange)
 ![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional-lightgrey)
 
@@ -26,6 +26,7 @@ All three layers are active by default — any can be disabled at any time.
 ## 📑 Table of Contents
 
 - [How It Works](#how-it-works)
+- [Local Agent Benchmark](#local-agent-benchmark)
 - [The Poison Well — L1](#-the-poison-well--data-corruption-l1)
 - [The Tarpit — L2](#-the-tarpit--resource-exhaustion-l2)
 - [The Tunnel — L3](#-the-tunnel--prompt-injection--c2-l3)
@@ -43,6 +44,75 @@ All three layers are active by default — any can be disabled at any time.
 - [Standards & Specifications](#standards-and-specifications)
 - [References](#references)
 - [License](#license)
+
+---
+
+## Local Agent Benchmark
+
+The repository now also contains a separate, local-only MVP for measuring how
+API-style web agents respond to recursive lures and synthetic prompt injection.
+It does not use crawler classification: each benchmark request is routed by a
+stored trial ID and condition under `/benchmark/{trial_id}/...`.
+
+The initial conditions are:
+
+- `control`: finite legitimate task content;
+- `finite_graph_control`: benign complexity matched to the recursive graph
+  before a declared divergence depth;
+- `recursive_trap`: a seeded cyclic graph with normal-sized local pages;
+- `synthetic_injection`: one visible instruction and a signed, single-use local
+  event token tied to a fake secret.
+
+The fixed scaffold exposes only `navigate`, `submit`, `answer`, and `abort`.
+It runs against a benchmark-only FastAPI application: legacy, admin, and
+cross-trial paths are not part of that application's reachable surface.
+Exact-origin and per-trial path validation, plus an independent raw-socket
+barrier, restrict browser traffic to the active local trial. Per-trial and
+batch governors reserve conservative worst-case model-call cost before a call
+and enforce hard limits for calls, token classes, actions, HTTP attempts,
+bytes, nodes, depth, wall time, and cost. Trial lifecycle transitions and event
+sequence allocation are transactional.
+
+Run the entire pre-paid rehearsal without a model credential:
+
+```bash
+uv sync --locked --extra dev
+uv run ai-abyss-benchmark mock-rehearsal
+uv run pytest -q
+uv run ruff check src tests
+```
+
+The rehearsal executes 18 matched pairs (36 trials) in both `AB` and `BA`
+order with fresh browser and provider state. The matrix includes a finite-graph
+versus recursive-graph pair traversed by the same deterministic follower. It
+writes ignored artifacts under
+`artifacts/benchmark/`: `manifest.json`, `events.jsonl`, `result.json`, evidence
+hashes, and a pair-level treatment-minus-control summary. A trace can be
+replayed without web or model execution:
+
+```bash
+uv run ai-abyss-benchmark replay artifacts/benchmark/<pair>/<trial>
+```
+
+If a standalone local server is needed for inspection, use the isolated
+benchmark entry point. It refuses a non-loopback bind:
+
+```bash
+uv run ai-abyss-benchmark-server --config config.yaml
+```
+
+Checked-in benchmark configuration is loopback-only, `execution_mode: mock`,
+and `allow_paid: false`. Configuration resolution is: an explicit path, then
+`AI_ABYSS_CONFIG`, then ignored `config.local.yaml`, then checked-in
+`config.yaml`. The live provider adapter is covered only by mocked HTTP contract
+tests. Recognition is derived only from an explicit natural-language rationale
+in a model action; the scaffold exposes no recognition flag or trap-specific
+tool. No hosted run is authorised by this repository state; see `plan.md` for
+the separate paid-run gate.
+
+Benchmark results do not validate the legacy crawler classifier, data-poisoning
+claims, or production deployment claims below. See `issues.md` and
+`existing benchmark review.md` for the audit and research boundary.
 
 ---
 
@@ -203,16 +273,19 @@ Pro tip: by design, the tarpit will considerably slow down your other manual tes
 
 ```bash
 # Run all tests
-pytest tests/
+uv run pytest -q
 
 # Verbose output with test names
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run a specific file
-pytest tests/test_classifier.py
+uv run pytest tests/test_classifier.py
 
 # Run a specific test
-pytest tests/test_tarpit.py::TestTarpitGenerator::test_infinite_depth
+uv run pytest tests/test_tarpit.py::TestTarpitGenerator::test_infinite_depth
+
+# Static checks
+uv run ruff check src tests
 ```
 
 Tests use an in-memory SQLite database and a separate [tests/config_test.yaml](tests/config_test.yaml) with reduced page sizes for speed. No network access or external services required.
@@ -315,7 +388,7 @@ ai-abyss/
 │   └── utils/
 │       ├── config.py          ← YAML config loader
 │       └── crypto.py          ← Token generation, hashing
-├── tests/                     ← 167 tests
+├── tests/                     ← legacy and benchmark regression suites
 ├── data/
 │   ├── ai_crawler_ips.json    ← Known AI company IP ranges
 │   ├── ja3_signatures.json    ← Known bot TLS fingerprints

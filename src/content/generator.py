@@ -116,8 +116,8 @@ class ContentGenerator:
     def __init__(
         self,
         seed: int | None = None,
-        topic: "TopicVocabulary | None" = None,
-        page_vocab: "PageVocabulary | None" = None,
+        topic: TopicVocabulary | None = None,
+        page_vocab: PageVocabulary | None = None,
     ) -> None:
         self._rng = random.Random(seed)
         self._topic = topic
@@ -148,7 +148,7 @@ class ContentGenerator:
 
         self._templates = topic.templates if topic else None
 
-    def seeded_for_path(self, path: str) -> "ContentGenerator":
+    def seeded_for_path(self, path: str) -> ContentGenerator:
         seed = int(hashlib.sha256(path.encode()).hexdigest(), 16) % (2**32)
         return ContentGenerator(seed=seed, topic=self._topic, page_vocab=self._page_vocab)
 

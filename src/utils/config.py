@@ -4,10 +4,15 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from src.benchmark.enums import ExecutionMode
+from src.benchmark.models import BudgetLimits
 
 
 class ServerConfig(BaseModel):
@@ -91,6 +96,71 @@ class AdminConfig(BaseModel):
     api_key: str = "CHANGE_ME"
 
 
+class BenchmarkConfig(BaseModel):
+    enabled: bool = True
+    execution_mode: ExecutionMode = ExecutionMode.MOCK
+    allow_paid: bool = False
+    paid_gate_approved: bool = False
+    paid_run_authorization_id: str | None = None
+    local_base_url: str = "http://127.0.0.1:8443"
+    callback_base_url: str = "http://127.0.0.1:8443"
+    artifact_dir: str = "./artifacts/benchmark"
+    db_path: str = "./data/benchmark.db"
+    provider: str = "mock"
+    model_id: str = "mock/task-solver-v1"
+    budgets: BudgetLimits = Field(default_factory=BudgetLimits)
+    egress_allowlist: list[str] = Field(default_factory=lambda: ["127.0.0.1", "localhost"])
+    bind_host: str = "127.0.0.1"
+    admin_enabled: bool = False
+
+    @field_validator("local_base_url", "callback_base_url")
+    @classmethod
+    def trusted_local_url(cls, value: str) -> str:
+        parts = urlsplit(value)
+        if (
+            parts.scheme != "http"
+            or parts.hostname not in {"127.0.0.1", "localhost"}
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+        ):
+            raise ValueError("pre-paid benchmark URLs must be loopback HTTP URLs")
+        try:
+            if parts.port is None:
+                raise ValueError("pre-paid benchmark URLs require an explicit port")
+        except ValueError as error:
+            raise ValueError("pre-paid benchmark URLs require a valid explicit port") from error
+        if parts.path not in {"", "/"}:
+            raise ValueError("pre-paid benchmark base URLs cannot include a path")
+        return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def guard_live_mode(self) -> BenchmarkConfig:
+        if self.admin_enabled:
+            raise ValueError("the admin dashboard is disabled on the benchmark path")
+        configured_hosts = {host.rstrip(".").casefold() for host in self.egress_allowlist}
+        required_hosts = {
+            urlsplit(self.local_base_url).hostname,
+            urlsplit(self.callback_base_url).hostname,
+        }
+        if not required_hosts.issubset(configured_hosts):
+            raise ValueError("benchmark URLs must be present in the egress allowlist")
+        if self.execution_mode is ExecutionMode.MOCK:
+            if self.provider != "mock":
+                raise ValueError("mock execution must use the mock provider")
+            return self
+        if not self.allow_paid:
+            raise ValueError("live execution refused: allow_paid is false")
+        if not self.paid_gate_approved or not self.paid_run_authorization_id:
+            raise ValueError("live execution refused: paid-run authorization is absent")
+        if self.provider in {"", "mock", "your-provider"}:
+            raise ValueError("live execution requires a non-placeholder provider")
+        if self.model_id in {"", "your-model", "CHANGE_ME"}:
+            raise ValueError("live execution requires a non-placeholder model")
+        return self
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     classification: ClassificationConfig = Field(default_factory=ClassificationConfig)
@@ -99,12 +169,24 @@ class AppConfig(BaseModel):
     injection: InjectionConfig = Field(default_factory=InjectionConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
     admin: AdminConfig = Field(default_factory=AdminConfig)
+    benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
 
 
-def load_config(path: str | Path = "config.yaml") -> AppConfig:
-    path = Path(path)
-    if path.exists():
-        with open(path) as f:
+def resolve_config_path(path: str | Path | None = None) -> Path:
+    """Resolve explicit path, ignored local override, then checked-in default."""
+    if path is not None:
+        return Path(path)
+    environment_path = os.environ.get("AI_ABYSS_CONFIG")
+    if environment_path:
+        return Path(environment_path)
+    local_path = Path("config.local.yaml")
+    return local_path if local_path.exists() else Path("config.yaml")
+
+
+def load_config(path: str | Path | None = None) -> AppConfig:
+    resolved = resolve_config_path(path)
+    if resolved.exists():
+        with resolved.open() as f:
             raw = yaml.safe_load(f) or {}
         return AppConfig(**raw)
     return AppConfig()

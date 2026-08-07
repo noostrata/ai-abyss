@@ -66,3 +66,20 @@ telemetry:
 admin:
   enabled: true
   api_key: "CHANGE_ME"
+
+# Local benchmark defaults are deliberately incapable of selecting a paid
+# provider. Local ignored overrides resolve before this checked-in file.
+benchmark:
+  enabled: true
+  execution_mode: "mock"
+  allow_paid: false
+  paid_gate_approved: false
+  local_base_url: "http://127.0.0.1:8443"
+  callback_base_url: "http://127.0.0.1:8443"
+  artifact_dir: "./artifacts/benchmark"
+  db_path: "./data/benchmark.db"
+  provider: "mock"
+  model_id: "mock/task-solver-v1"
+  egress_allowlist: ["127.0.0.1", "localhost"]
+  bind_host: "127.0.0.1"
+  admin_enabled: false

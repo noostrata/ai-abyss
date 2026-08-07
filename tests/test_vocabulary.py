@@ -2,12 +2,14 @@
 # https://github.com/terrorswift/ai-abyss
 # Tests for the vocabulary band system and page vocabulary builder
 
+from typing import ClassVar
+
 from src.content.vocabulary import (
-    TOPIC_BANDS,
-    TRANSITION_POOLS,
+    DISCOURSE_MARKER_POOLS,
     HEDGE_POOLS,
     QUANTIFIER_POOLS,
-    DISCOURSE_MARKER_POOLS,
+    TOPIC_BANDS,
+    TRANSITION_POOLS,
     PageVocabulary,
     build_page_vocabulary,
 )
@@ -16,7 +18,7 @@ from src.content.vocabulary import (
 # All topic bands are populated and valid
 class TestVocabularyBands:
 
-    EXPECTED_TOPICS = [
+    EXPECTED_TOPICS: ClassVar[list[str]] = [
         "machine_learning", "cybersecurity", "cloud_infrastructure",
         "databases", "cryptography", "web_development",
         "distributed_systems", "quantum_computing", "bioinformatics",

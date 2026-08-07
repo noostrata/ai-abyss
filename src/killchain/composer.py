@@ -9,14 +9,13 @@ from dataclasses import dataclass, field
 
 from src.content.generator import ContentGenerator
 from src.content.topics import get_topic_for_path
-from src.content.vocabulary import build_page_vocabulary
 from src.content.unicode_weapons import mixed_attack
+from src.content.vocabulary import build_page_vocabulary
 from src.killchain.indirect_inject import IndirectInjectionEngine, IndirectPayload
 from src.killchain.inject import InjectionEngine, InjectionResult
 from src.killchain.tarpit import TarpitGenerator
 from src.utils.config import AppConfig
 from src.utils.crypto import deterministic_seed
-
 
 # Different page "shapes" to avoid all pages looking the same
 PAGE_TYPES = [
@@ -249,7 +248,7 @@ class PageComposer:
             method = rng.choice(["GET", "POST", "PUT"])
             sections.append(f"<h3><code>{method} {endpoint}</code></h3>")
             sections.append(f"<p>{gen.generate_paragraph(2, 3)}</p>")
-            sections.append(f"<h4>Parameters</h4>")
+            sections.append("<h4>Parameters</h4>")
             sections.append(f"<p>{gen.generate_paragraph(1, 2)}</p>")
         return sections
 
@@ -264,7 +263,7 @@ class PageComposer:
                 "What are the requirements for {adj} {noun}?",
                 "How do I configure {noun} for {adj} {noun2}?",
             ]
-            from src.content.generator import TECH_NOUNS, TECH_ADJECTIVES
+            from src.content.generator import TECH_ADJECTIVES, TECH_NOUNS
             q = rng.choice(question_templates).format(
                 noun=rng.choice(TECH_NOUNS), noun2=rng.choice(TECH_NOUNS),
                 adj=rng.choice(TECH_ADJECTIVES), adj2=rng.choice(TECH_ADJECTIVES),

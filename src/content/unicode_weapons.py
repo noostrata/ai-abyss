@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import random
-from typing import Sequence
 
 # ── Homoglyph mappings ─────────────────────────────────────────────
 # Latin → visually identical Cyrillic/Greek equivalents

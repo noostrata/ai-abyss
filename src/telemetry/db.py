@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiosqlite
@@ -119,7 +119,7 @@ class TelemetryDB:
         robots_respected: bool = False,
         user_agent: str | None = None,
     ) -> int:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         cursor = await self.db.execute(
             """UPDATE sessions
                SET last_seen = ?, pages_fetched = pages_fetched + 1,

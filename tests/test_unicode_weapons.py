@@ -3,12 +3,9 @@
 # Tests for strategic homoglyphs and Unicode attacks
 
 from src.content.unicode_weapons import (
-    HOMOGLYPH_MAP,
     apply_homoglyphs,
-    inject_zero_width,
     mixed_attack,
     strategic_homoglyphs,
-    zalgoify,
 )
 
 

@@ -2,7 +2,7 @@
 # https://github.com/terrorswift/ai-abyss
 # Tests for the indirect injection engine
 
-from src.killchain.indirect_inject import IndirectInjectionEngine, IndirectPayload
+from src.killchain.indirect_inject import IndirectInjectionEngine
 from src.utils.crypto import set_deployment_secret
 
 set_deployment_secret("test-secret-for-testing")

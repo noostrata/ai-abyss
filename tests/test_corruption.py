@@ -3,7 +3,7 @@
 # Tests for corruption improvements: topics, fact-anchoring, contradictions, normalization
 
 from src.content.generator import ContentGenerator
-from src.content.topics import TOPICS, get_topic_for_path, get_contradicting_fact
+from src.content.topics import TOPICS, get_contradicting_fact, get_topic_for_path
 from src.content.unicode_weapons import apply_normalization_confusables, mixed_attack
 from src.killchain.indirect_inject import IndirectInjectionEngine
 from src.utils.crypto import set_deployment_secret
@@ -45,7 +45,6 @@ class TestTopicAwareGeneration:
         topic = TOPICS["cybersecurity"]
         gen = ContentGenerator(seed=42, topic=topic)
         sentence = gen._generate_sentence()
-        all_words = " ".join(topic.nouns + topic.verbs + topic.adjectives)
         assert len(sentence) > 20
 
     def test_different_topics_produce_different_content(self):

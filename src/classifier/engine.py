@@ -8,14 +8,13 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Any
 
 from starlette.requests import Request
 
 from src.classifier.behaviour import BehaviourTracker
 from src.classifier.fingerprint import FingerprintAnalyzer
 from src.classifier.ip_reputation import IPReputationChecker
-from src.classifier.signals import Classification, ClassificationResult, Signal, fuse_signals
+from src.classifier.signals import ClassificationResult, Signal, fuse_signals
 from src.utils.config import ClassificationConfig
 from src.utils.crypto import hash_fingerprint
 
@@ -66,11 +65,7 @@ class ClassificationEngine:
 
         session = self._behaviour.record_request(fingerprint, path)
 
-        header_dict: dict[str, str] | None = None
-        try:
-            header_dict = {k.lower(): v for k, v in request.headers.items()}
-        except Exception:
-            pass
+        header_dict = {k.lower(): v for k, v in request.headers.items()}
 
         signals = self._gather_signals(ip, ua, ja3, path, fingerprint, headers=header_dict)
 

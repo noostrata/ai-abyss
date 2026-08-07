@@ -9,7 +9,6 @@ import hmac
 import secrets
 import time
 
-
 # Stable secret for deterministic canary generation per deployment
 _DEPLOYMENT_SECRET: str | None = None
 

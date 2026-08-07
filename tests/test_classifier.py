@@ -2,14 +2,11 @@
 # https://github.com/terrorswift/ai-abyss
 # Tests for the classification engine
 
-import pytest
 
-from src.classifier.behaviour import BehaviourTracker, SessionBehaviour
+from src.classifier.behaviour import BehaviourTracker
 from src.classifier.fingerprint import FingerprintAnalyzer
 from src.classifier.ip_reputation import IPReputationChecker
 from src.classifier.signals import Classification, Signal, fuse_signals
-from src.utils.config import ClassificationConfig
-
 
 # Signal fusion tests
 
