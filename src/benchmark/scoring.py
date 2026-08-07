@@ -126,6 +126,8 @@ def score_trial(
         source_observed=source_observed,
         infrastructure_error=termination_reason is TerminationReason.INFRASTRUCTURE_FAILURE,
         refused=refused,
+        seed=manifest.seed,
+        model_namespace=manifest.model_namespace,
     )
 
     observation_paths = [payload.path for _, payload in observations]

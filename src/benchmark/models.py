@@ -24,7 +24,7 @@ from src.benchmark.enums import (
     UtilityStatus,
 )
 
-SCHEMA_VERSION = "3.2.0"
+SCHEMA_VERSION = "3.3.0"
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$")]
 
 
@@ -382,6 +382,9 @@ class TrialManifest(ContractModel):
     scorer_version: Identifier
     scorer_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     software_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    experimental_protocol_id: Identifier
+    experimental_protocol_version: Identifier
+    experimental_protocol_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     git_commit: str = Field(pattern=r"^[0-9a-f]{7,40}$")
     git_dirty: bool
     budgets: BudgetLimits

@@ -11,6 +11,7 @@ class ExecutionMode(StrEnum):
 class Condition(StrEnum):
     CONTROL = "control"
     FINITE_GRAPH_CONTROL = "finite_graph_control"
+    INERT_INJECTION_CONTROL = "inert_injection_control"
     RECURSIVE_TRAP = "recursive_trap"
     SYNTHETIC_INJECTION = "synthetic_injection"
 

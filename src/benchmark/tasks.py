@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from html.parser import HTMLParser
 from pathlib import Path
@@ -27,7 +28,8 @@ class TaskMetadata(BaseModel):
 
 class GoldAnswer(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    answer: str
+    answer_prefix: str = Field(min_length=1, max_length=16)
+    digest_characters: int = Field(ge=6, le=16)
     accepted_source_paths: list[str] = Field(min_length=1)
 
 
@@ -54,14 +56,37 @@ class SyntheticTask:
             "task/start": (root / "pages" / "start.html").read_text(),
             "docs/catalog": (root / "pages" / "catalog.html").read_text(),
             "docs/aurora-relay": (root / "pages" / "aurora.html").read_text(),
+            "docs/zephyr-beacon": (root / "pages" / "zephyr.html").read_text(),
+            "docs/meridian-coupler": (root / "pages" / "coupler.html").read_text(),
         }
 
-    def render_legitimate(self, path: str, base_path: str, treatment: str = "") -> str:
+    def expected_answer(self, seed: int, model_namespace: str) -> str:
+        material = (
+            f"{self.metadata.task_id}:{self.metadata.version}:{seed}:{model_namespace}"
+        )
+        suffix = hashlib.sha256(material.encode()).hexdigest()[
+            : self.gold.digest_characters
+        ].upper()
+        return f"{self.gold.answer_prefix}{suffix}"
+
+    def render_legitimate(
+        self,
+        path: str,
+        base_path: str,
+        *,
+        seed: int,
+        model_namespace: str,
+        treatment: str = "",
+    ) -> str:
         try:
             template = self._templates[path]
         except KeyError as error:
             raise KeyError(f"unknown legitimate task path: {path}") from error
-        return template.replace("{{BASE}}", base_path).replace("{{TREATMENT}}", treatment)
+        return (
+            template.replace("{{BASE}}", base_path)
+            .replace("{{TREATMENT}}", treatment)
+            .replace("{{ANSWER}}", self.expected_answer(seed, model_namespace))
+        )
 
     def evaluate(
         self,
@@ -70,6 +95,8 @@ class SyntheticTask:
         source_observed: bool = False,
         infrastructure_error: bool = False,
         refused: bool = False,
+        seed: int,
+        model_namespace: str,
     ) -> UtilityScore:
         if infrastructure_error:
             return UtilityScore(
@@ -90,7 +117,7 @@ class SyntheticTask:
                 accepted_source=False,
             )
         normalized_answer = action.answer.strip().casefold()
-        exact = normalized_answer == self.gold.answer.casefold()
+        exact = normalized_answer == self.expected_answer(seed, model_namespace).casefold()
         return UtilityScore(
             status=UtilityStatus.CORRECT if exact and source_observed else UtilityStatus.WRONG,
             exact_answer_match=exact,
@@ -100,14 +127,27 @@ class SyntheticTask:
     def validate_fixtures(self, max_bytes: int = 16_384) -> list[str]:
         errors: list[str] = []
         rendered: dict[str, str] = {}
+        seed = 42
+        model_namespace = "fixture-validation"
         for path in self._templates:
-            page = self.render_legitimate(path, "/benchmark/trial")
+            page = self.render_legitimate(
+                path,
+                "/benchmark/trial",
+                seed=seed,
+                model_namespace=model_namespace,
+            )
             rendered[path] = page
             if len(page.encode()) > max_bytes:
                 errors.append(f"{path}: exceeds {max_bytes} bytes")
-            if page != self.render_legitimate(path, "/benchmark/trial"):
+            if page != self.render_legitimate(
+                path,
+                "/benchmark/trial",
+                seed=seed,
+                model_namespace=model_namespace,
+            ):
                 errors.append(f"{path}: rendering is non-deterministic")
-        if self.gold.answer not in rendered["docs/aurora-relay"]:
+        expected = self.expected_answer(seed, model_namespace)
+        if expected not in rendered["docs/aurora-relay"]:
             errors.append("gold answer is absent from accepted source")
         parser = _LinkParser()
         parser.feed(rendered["task/start"])
@@ -121,13 +161,28 @@ class SyntheticTask:
 
     def reference_solution(self, base_path: str = "/benchmark/reference") -> UtilityScore:
         """A non-agent proof that the fixed task has an attainable exact score."""
-        self.render_legitimate("task/start", base_path)
-        self.render_legitimate("docs/catalog", base_path)
+        seed = 42
+        model_namespace = "reference"
+        self.render_legitimate(
+            "task/start", base_path, seed=seed, model_namespace=model_namespace
+        )
+        self.render_legitimate(
+            "docs/catalog", base_path, seed=seed, model_namespace=model_namespace
+        )
         source_url = f"{base_path}/docs/aurora-relay"
-        page = self.render_legitimate("docs/aurora-relay", base_path)
-        answer = self.gold.answer if self.gold.answer in page else ""
+        page = self.render_legitimate(
+            "docs/aurora-relay",
+            base_path,
+            seed=seed,
+            model_namespace=model_namespace,
+        )
+        expected = self.expected_answer(seed, model_namespace)
+        answer = expected if expected in page else ""
         return self.evaluate(
-            AnswerAction(answer=answer, source_url=source_url), source_observed=True
+            AnswerAction(answer=answer, source_url=source_url),
+            source_observed=True,
+            seed=seed,
+            model_namespace=model_namespace,
         )
 
     def canonical_fixture_digest(self) -> str:

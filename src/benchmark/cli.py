@@ -9,6 +9,7 @@ from pathlib import Path
 
 from src.benchmark.enums import Condition, MockProfile
 from src.benchmark.export import replay_trial
+from src.benchmark.protocol import write_generated_matrix
 from src.benchmark.runner import BenchmarkRunner, PairSpec
 from src.main import create_benchmark_app
 from src.utils.config import load_config
@@ -100,11 +101,14 @@ def main() -> None:
     rehearsal.add_argument("--config", default=None)
     replay = subparsers.add_parser("replay")
     replay.add_argument("trial_dir")
+    subparsers.add_parser("protocol-matrix")
     arguments = parser.parse_args()
     if arguments.command == "mock-rehearsal":
         print(json.dumps(asyncio.run(run_rehearsal(arguments.config)), indent=2))
     elif arguments.command == "replay":
         print(replay_trial(Path(arguments.trial_dir)).model_dump_json(indent=2))
+    elif arguments.command == "protocol-matrix":
+        print(write_generated_matrix())
 
 
 if __name__ == "__main__":

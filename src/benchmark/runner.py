@@ -61,6 +61,10 @@ from src.benchmark.models import (
     content_sha256,
 )
 from src.benchmark.network_isolation import HostedIsolationEvidence
+from src.benchmark.protocol import (
+    experimental_protocol_digest,
+    load_experimental_protocol,
+)
 from src.benchmark.providers.base import (
     MAX_TRAJECTORY_TURNS,
     Provider,
@@ -117,7 +121,11 @@ class PairSpec:
     def __post_init__(self) -> None:
         if self.order not in {"AB", "BA"}:
             raise ValueError("pair order must be AB or BA")
-        if self.condition_a not in {Condition.CONTROL, Condition.FINITE_GRAPH_CONTROL}:
+        if self.condition_a not in {
+            Condition.CONTROL,
+            Condition.FINITE_GRAPH_CONTROL,
+            Condition.INERT_INJECTION_CONTROL,
+        }:
             raise ValueError("pair position A must be a declared control condition")
         if self.condition_b is Condition.CONTROL:
             raise ValueError("pair position B must be a treatment condition")
@@ -126,6 +134,13 @@ class PairSpec:
             and self.condition_b is not Condition.RECURSIVE_TRAP
         ):
             raise ValueError("finite graph control is only matched to recursive trap")
+        if (
+            self.condition_a is Condition.INERT_INJECTION_CONTROL
+            and self.condition_b is not Condition.SYNTHETIC_INJECTION
+        ):
+            raise ValueError(
+                "inert injection control is only matched to synthetic injection"
+            )
 
 
 @dataclass(frozen=True)
@@ -468,6 +483,8 @@ class BenchmarkRunner:
                     )
                     utility = services.renderer.task.evaluate(
                         step.answer,
+                        seed=manifest.seed,
+                        model_namespace=manifest.model_namespace,
                         source_observed=source_observed_for_answer(
                             manifest,
                             services.renderer.task,
@@ -616,7 +633,9 @@ class BenchmarkRunner:
                 depth=depth,
                 visible_text_sha256=content_sha256(observation.visible_text),
                 contains_task_answer=(
-                    services.renderer.task.gold.answer.casefold()
+                    services.renderer.task.expected_answer(
+                        manifest.seed, manifest.model_namespace
+                    ).casefold()
                     in observation.visible_text.casefold()
                 ),
                 observation_sha256=observation.sha256,
@@ -828,6 +847,7 @@ class BenchmarkRunner:
         profile = spec.profile.value
         identity = self.provider_selection.identity_for(spec.profile)
         task = self.app.state.benchmark_services.renderer.task
+        protocol = load_experimental_protocol()
         return (
             TrialManifest(
                 trial_id=trial_id,
@@ -862,6 +882,9 @@ class BenchmarkRunner:
                 scorer_version=SCORER_VERSION,
                 scorer_sha256=scorer_digest(),
                 software_sha256=benchmark_software_digest(),
+                experimental_protocol_id=protocol.protocol_id,
+                experimental_protocol_version=protocol.protocol_version,
+                experimental_protocol_sha256=experimental_protocol_digest(),
                 git_commit=commit,
                 git_dirty=dirty,
                 budgets=self.config.benchmark.budgets,
@@ -969,6 +992,7 @@ class BenchmarkRunner:
         )
         config = self.config.benchmark
         contract = load_apparatus_contract()
+        protocol = load_experimental_protocol()
         if (
             config.execution_mode.value != "live"
             or not config.allow_paid
@@ -979,6 +1003,22 @@ class BenchmarkRunner:
             or authorization.apparatus_contract_version
             != contract["apparatus_contract_version"]
             or authorization.apparatus_contract_sha256 != apparatus_contract_digest()
+            or authorization.experimental_protocol_id != protocol.protocol_id
+            or authorization.experimental_protocol_sha256
+            != experimental_protocol_digest()
+            or authorization.max_trials != protocol.spending.maximum_trials
+            or authorization.max_calls_per_trial
+            > protocol.spending.maximum_calls_per_trial
+            or authorization.max_output_tokens_per_call
+            > protocol.spending.maximum_output_tokens_per_call
+            or authorization.max_reasoning_tokens_per_call
+            > protocol.spending.maximum_reasoning_tokens_per_call
+            or authorization.trial_cost_cap_usd
+            > protocol.spending.maximum_trial_cost_usd
+            or authorization.batch_cost_cap_usd
+            > protocol.spending.maximum_batch_cost_usd
+            or authorization.provider_spending_limit_usd
+            > protocol.spending.provider_limit_must_not_exceed_usd
             or config.budgets.calls > authorization.max_calls_per_trial
             or config.budgets.cost_usd > authorization.trial_cost_cap_usd
             or abs(self.batch.cost_limit_usd - authorization.batch_cost_cap_usd)

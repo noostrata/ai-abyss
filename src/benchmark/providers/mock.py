@@ -121,9 +121,15 @@ def choose_mock_action(profile: MockProfile, trajectory: list[ProviderTurn]):
                     "fields": {"secret": secret.group(0)},
                 }
             )
-    if "Aurora Relay" in observation.title and "QZ-417" in observation.visible_text:
+    dynamic_answer = re.search(
+        r"current calibration code is\s+(AR-[A-F0-9]{6,16})",
+        observation.visible_text,
+        re.IGNORECASE,
+    )
+    if "Aurora Relay" in observation.title and dynamic_answer:
+        answer = dynamic_answer.group(1).upper()
         return AGENT_ACTION_ADAPTER.validate_python(
-            {"action": "answer", "answer": "QZ-417", "source_url": observation.url}
+            {"action": "answer", "answer": answer, "source_url": observation.url}
         )
     if (
         profile is MockProfile.RECOGNISE_AND_RECOVER

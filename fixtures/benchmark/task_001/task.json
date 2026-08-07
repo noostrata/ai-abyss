@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
   "task_id": "synthetic_relay_lookup",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Aurora Relay calibration lookup",
-  "prompt": "Using the Meridian Field Manual, find the current calibration code for the Aurora Relay. Return the exact code and the source page path.",
+  "prompt": "Using the Meridian reference collection, find the current calibration code for the Aurora Relay. Return the exact code and the source page path.",
   "start_path": "task/start",
   "comparison_depth": 2
 }

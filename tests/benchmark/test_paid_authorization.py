@@ -8,6 +8,10 @@ from src.benchmark.authorization import PaidRunAuthorization
 from src.benchmark.budgets import BatchBudget, PriceSnapshot
 from src.benchmark.enums import Condition, ExecutionMode, MockProfile
 from src.benchmark.network_isolation import HostedIsolationEvidence
+from src.benchmark.protocol import (
+    experimental_protocol_digest,
+    load_experimental_protocol,
+)
 from src.benchmark.providers.openrouter import HOSTED_OPENROUTER_ENDPOINT
 from src.benchmark.runner import (
     BenchmarkRunner,
@@ -20,6 +24,7 @@ from src.utils.config import BenchmarkConfig, load_config
 def _authorization(**updates) -> PaidRunAuthorization:
     now = datetime.now(UTC)
     contract = load_apparatus_contract()
+    protocol = load_experimental_protocol()
     values = {
         "authorization_id": "auth-test-only",
         "issued_at": now - timedelta(minutes=1),
@@ -29,8 +34,8 @@ def _authorization(**updates) -> PaidRunAuthorization:
         "software_commit": "0" * 40,
         "apparatus_contract_version": contract["apparatus_contract_version"],
         "apparatus_contract_sha256": apparatus_contract_digest(),
-        "experimental_protocol_id": "protocol-test-only",
-        "experimental_protocol_sha256": "1" * 64,
+        "experimental_protocol_id": protocol.protocol_id,
+        "experimental_protocol_sha256": experimental_protocol_digest(),
         "model_id": "vendor/exact-model",
         "provider_route": "VendorExact",
         "price_snapshot": PriceSnapshot(
@@ -43,13 +48,13 @@ def _authorization(**updates) -> PaidRunAuthorization:
             completion_usd_per_million=2,
             reasoning_usd_per_million=2,
         ),
-        "max_trials": 2,
-        "max_calls_per_trial": 20,
+        "max_trials": 8,
+        "max_calls_per_trial": 8,
         "max_output_tokens_per_call": 512,
         "max_reasoning_tokens_per_call": 512,
-        "trial_cost_cap_usd": 1,
-        "batch_cost_cap_usd": 2,
-        "provider_spending_limit_usd": 2,
+        "trial_cost_cap_usd": 0.5,
+        "batch_cost_cap_usd": 4,
+        "provider_spending_limit_usd": 4,
         "dual_layer_egress_evidence_id": "egress-test",
         "kill_switch_id": "kill-test",
         "artifact_policy_id": "artifact-test",
@@ -60,6 +65,8 @@ def _authorization(**updates) -> PaidRunAuthorization:
 
 def _live_config() -> object:
     config = load_config("tests/config_test.yaml")
+    config.benchmark.budgets.calls = 8
+    config.benchmark.budgets.cost_usd = 0.5
     config.benchmark = BenchmarkConfig(
         execution_mode=ExecutionMode.LIVE,
         allow_paid=True,
@@ -134,7 +141,7 @@ async def test_authorized_factory_is_inert_until_exact_clean_commit(benchmark_ap
 def test_authorized_factory_rejects_budget_or_identity_drift(benchmark_app):
     authorization = _authorization()
     config = _live_config()
-    config.benchmark.budgets.cost_usd = 1.01
+    config.benchmark.budgets.cost_usd = 0.51
     with pytest.raises(ValueError, match="does not match"):
         BenchmarkRunner(
             benchmark_app,
@@ -159,7 +166,7 @@ def test_authorization_rejects_expiry_route_and_cap_incoherence():
             )
         )
     with pytest.raises(ValueError, match="batch cap"):
-        _authorization(trial_cost_cap_usd=3)
+        _authorization(trial_cost_cap_usd=5)
 
 
 def test_hosted_factory_requires_current_external_isolation_evidence():

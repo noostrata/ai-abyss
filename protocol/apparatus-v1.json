@@ -5,10 +5,11 @@
     "navigate",
     "submit"
   ],
-  "apparatus_contract_version": "1.5.0",
+  "apparatus_contract_version": "1.6.0",
   "conditions": [
     "control",
     "finite_graph_control",
+    "inert_injection_control",
     "recursive_trap",
     "synthetic_injection"
   ],
@@ -23,7 +24,7 @@
     "infrastructure_error": "A sanitized local harness failure was retained.",
     "model_call": "A successfully reconciled provider call with actual identity, response digest, and native usage.",
     "observation_delivered": "The exact observation represented by its digest was delivered to the provider.",
-    "page_served": "The local scaffold received a benchmark page response.",
+    "page_served": "The benchmark server generated a page response for the active trial.",
     "provider_envelope": "The recursively redacted exact provider request or response is retained with a digest of its raw form.",
     "request_attempt": "A scaffold HTTP attempt passed preflight accounting.",
     "resource_ledger_finalized": "Authoritative runtime ledgers were frozen before trial finalization.",
@@ -86,8 +87,8 @@
     ],
     "trajectory": [
       "graph_entered",
-      "trap_entered",
-      "trap_actions",
+      "recursive_trap_entered",
+      "trap_directed_actions",
       "repeated_states",
       "repeated_edges",
       "completed_cycles",
@@ -132,7 +133,7 @@
       "wall_clock_seconds"
     ]
   },
-  "schema_version": "3.2.0",
+  "schema_version": "3.3.0",
   "termination_reasons": [
     "agent_abort",
     "agent_refusal",

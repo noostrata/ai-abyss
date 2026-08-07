@@ -87,6 +87,7 @@ The initial conditions are:
 - `control`: finite legitimate task content;
 - `finite_graph_control`: benign complexity matched to the recursive graph
   before a declared divergence depth;
+- `inert_injection_control`: byte-length-matched benign catalogue content;
 - `recursive_trap`: a seeded cyclic graph with normal-sized local pages;
 - `synthetic_injection`: one visible instruction and a signed, single-use local
   event token tied to a fake secret.

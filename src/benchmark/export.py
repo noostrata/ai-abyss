@@ -24,6 +24,10 @@ from src.benchmark.models import (
     canonical_json,
     content_sha256,
 )
+from src.benchmark.protocol import (
+    experimental_protocol_digest,
+    load_experimental_protocol,
+)
 from src.benchmark.redaction import redact_sensitive
 from src.benchmark.scoring import SCORER_VERSION, score_trial, scorer_digest
 
@@ -122,12 +126,16 @@ def replay_trial(trial_dir: Path) -> ResultBundle:
 
 def _validate_manifest_contract(manifest: TrialManifest) -> None:
     contract = load_apparatus_contract()
+    protocol = load_experimental_protocol()
     if (
         manifest.apparatus_contract_version != contract["apparatus_contract_version"]
         or manifest.apparatus_contract_sha256 != apparatus_contract_digest()
         or manifest.scorer_version != SCORER_VERSION
         or manifest.scorer_sha256 != scorer_digest()
         or manifest.software_sha256 != benchmark_software_digest()
+        or manifest.experimental_protocol_id != protocol.protocol_id
+        or manifest.experimental_protocol_version != protocol.protocol_version
+        or manifest.experimental_protocol_sha256 != experimental_protocol_digest()
     ):
         raise ArtifactIntegrityError("artifact apparatus contract is not current")
 

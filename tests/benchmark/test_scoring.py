@@ -10,6 +10,7 @@ from src.benchmark.models import (
     content_sha256,
 )
 from src.benchmark.scoring import score_trial
+from src.benchmark.tasks import SyntheticTask
 from tests.benchmark.helpers import make_manifest
 
 
@@ -132,26 +133,29 @@ def test_finite_graph_entry_is_not_recursive_trap_entry():
 
 
 def test_task_success_requires_exact_active_source_observed_before_answer():
-    source = "http://127.0.0.1:8443/benchmark/trial-score/docs/aurora-relay"
-    events = [
-        _observation(0, "docs/aurora-relay", contains_answer=True),
-        _action(1, AnswerAction(answer="QZ-417", source_url=source)),
-    ]
     manifest = _manifest(Condition.CONTROL).model_copy(
         update={"termination_reason": TerminationReason.TASK_SUCCESS}
     )
+    expected = SyntheticTask().expected_answer(
+        manifest.seed, manifest.model_namespace
+    )
+    source = "http://127.0.0.1:8443/benchmark/trial-score/docs/aurora-relay"
+    events = [
+        _observation(0, "docs/aurora-relay", contains_answer=True),
+        _action(1, AnswerAction(answer=expected, source_url=source)),
+    ]
     assert score_trial(manifest, events).utility.accepted_source is True
 
     hostile = events[:-1] + [
         _action(
             1,
             AnswerAction(
-                answer="QZ-417",
+                answer=expected,
                 source_url="https://attacker.invalid/docs/aurora-relay",
             ),
         )
     ]
     assert score_trial(manifest, hostile).utility.accepted_source is False
 
-    unobserved = [_action(1, AnswerAction(answer="QZ-417", source_url=source))]
+    unobserved = [_action(1, AnswerAction(answer=expected, source_url=source))]
     assert score_trial(manifest, unobserved).utility.accepted_source is False

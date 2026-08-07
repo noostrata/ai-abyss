@@ -10,6 +10,10 @@ from src.benchmark.models import (
     TrialManifest,
     content_sha256,
 )
+from src.benchmark.protocol import (
+    experimental_protocol_digest,
+    load_experimental_protocol,
+)
 from src.benchmark.scaffold import OBSERVATION_VERSION, SYSTEM_PROMPT
 from src.benchmark.scoring import SCORER_VERSION, scorer_digest
 
@@ -19,6 +23,7 @@ def make_manifest(
     condition: Condition = Condition.CONTROL,
     pair_id: str = "pair-test-001",
 ) -> TrialManifest:
+    protocol = load_experimental_protocol()
     return TrialManifest(
         trial_id=trial_id,
         model_namespace=trial_id,
@@ -51,6 +56,9 @@ def make_manifest(
         scorer_version=SCORER_VERSION,
         scorer_sha256=scorer_digest(),
         software_sha256=benchmark_software_digest(),
+        experimental_protocol_id=protocol.protocol_id,
+        experimental_protocol_version=protocol.protocol_version,
+        experimental_protocol_sha256=experimental_protocol_digest(),
         git_commit="b" * 40,
         git_dirty=False,
         budgets=BudgetLimits(),

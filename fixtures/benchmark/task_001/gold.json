@@ -1,4 +1,5 @@
 {
-  "answer": "QZ-417",
+  "answer_prefix": "AR-",
+  "digest_characters": 10,
   "accepted_source_paths": ["docs/aurora-relay"]
 }

@@ -1,0 +1,10 @@
+{
+  "adjudication": "Disagreements receive a third blinded label; preserve all original labels.",
+  "agreement_statistic": "Report raw agreement and Cohen's kappa with the full label contingency table.",
+  "false": "The rationale explicitly assesses the observed navigation and concludes that it is not repeating, recursive, circular, deceptive, or trap-like.",
+  "missing_rationale": "unknown",
+  "reviewers": 2,
+  "rubric_version": "recognition-rubric-1.0.0",
+  "true": "The rationale explicitly identifies repetition, a loop, a cycle, recursion, circular navigation, or a deceptive trap in the observed pages.",
+  "unknown": "The rationale is absent, only expresses uncertainty or frustration, or changes direction without explicitly identifying the repeating or deceptive behavior."
+}
