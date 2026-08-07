@@ -36,12 +36,14 @@ class EventType(StrEnum):
     OBSERVATION_DELIVERED = "observation_delivered"
     AGENT_ACTION = "agent_action"
     MODEL_CALL = "model_call"
+    CALL_ATTEMPT_STATE = "call_attempt_state"
     CALLBACK_TOKEN_ISSUED = "callback_token_issued"
     CALLBACK_VISITED = "callback_visited"
     SUBMISSION_ATTEMPTED = "submission_attempted"
     SYNTHETIC_SECRET_SUBMITTED = "synthetic_secret_submitted"
     BUDGET_RESERVED = "budget_reserved"
     BUDGET_RECONCILED = "budget_reconciled"
+    RESOURCE_LEDGER_FINALIZED = "resource_ledger_finalized"
     TRIAL_ENDED = "trial_ended"
     INFRASTRUCTURE_ERROR = "infrastructure_error"
 
@@ -83,6 +85,17 @@ class Recognition(StrEnum):
     TRUE = "true"
     FALSE = "false"
     UNKNOWN = "unknown"
+
+
+class CallAttemptState(StrEnum):
+    RESERVED = "reserved"
+    LOCALLY_STARTED = "locally_started"
+    SENT = "sent"
+    ACKNOWLEDGED = "acknowledged"
+    RECONCILED = "reconciled"
+    DEFINITELY_NOT_SENT = "definitely_not_sent"
+    REJECTED_BEFORE_INFERENCE = "rejected_before_inference"
+    BILLING_UNKNOWN = "billing_unknown"
 
 
 class MockProfile(StrEnum):

@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator,
 
 from src.benchmark.enums import (
     AgentActionKind,
+    CallAttemptState,
     Condition,
     EventType,
     Recognition,
@@ -23,7 +24,7 @@ from src.benchmark.enums import (
     UtilityStatus,
 )
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "3.0.0"
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$")]
 
 
@@ -68,6 +69,8 @@ class ProviderUsage(ContractModel):
     def validate_total(self) -> ProviderUsage:
         if self.total_tokens < self.prompt_tokens + self.completion_tokens:
             raise ValueError("total_tokens cannot be below prompt plus completion tokens")
+        if self.reasoning_tokens > self.completion_tokens:
+            raise ValueError("reasoning tokens are a subset of completion tokens")
         return self
 
 
@@ -78,8 +81,13 @@ class SamplingConfig(ContractModel):
 
 
 class ResourceLedger(ContractModel):
+    provider_attempts: int = Field(default=0, ge=0)
+    provider_acknowledged: int = Field(default=0, ge=0)
+    reconciled_calls: int = Field(default=0, ge=0)
+    billing_unknown_calls: int = Field(default=0, ge=0)
     calls: int = Field(default=0, ge=0)
     requests: int = Field(default=0, ge=0)
+    redirects: int = Field(default=0, ge=0)
     prompt_tokens: int = Field(default=0, ge=0)
     completion_tokens: int = Field(default=0, ge=0)
     reasoning_tokens: int = Field(default=0, ge=0)
@@ -89,15 +97,32 @@ class ResourceLedger(ContractModel):
     actions: int = Field(default=0, ge=0)
     bytes_read: int = Field(default=0, ge=0)
     bytes_served: int = Field(default=0, ge=0)
+    bytes_generated: int = Field(default=0, ge=0)
+    bytes_sent: int = Field(default=0, ge=0)
+    bytes_delivered: int = Field(default=0, ge=0)
     unique_nodes: int = Field(default=0, ge=0)
     max_depth: int = Field(default=0, ge=0)
     wall_clock_seconds: float = Field(default=0.0, ge=0)
     estimated_cost_usd: float = Field(default=0.0, ge=0)
+    known_cost_usd: float = Field(default=0.0, ge=0)
+    maximum_possible_cost_usd: float = Field(default=0.0, ge=0)
     provider_reported_cost_usd: float | None = Field(default=None, ge=0)
     cpu_seconds: float | None = Field(default=None, ge=0)
     peak_memory_bytes: int | None = Field(default=None, ge=0)
     connections: int | None = Field(default=None, ge=0)
     file_descriptors_peak: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def coherent_resources(self) -> ResourceLedger:
+        if self.reasoning_tokens > self.completion_tokens:
+            raise ValueError("reasoning tokens are a subset of completion tokens")
+        if self.reconciled_calls + self.billing_unknown_calls > self.provider_attempts:
+            raise ValueError("settled calls cannot exceed provider attempts")
+        if self.provider_acknowledged > self.provider_attempts:
+            raise ValueError("acknowledgements cannot exceed provider attempts")
+        if self.known_cost_usd > self.maximum_possible_cost_usd + 1e-12:
+            raise ValueError("known cost cannot exceed maximum-possible cost")
+        return self
 
 
 class NavigateAction(ContractModel):
@@ -197,6 +222,19 @@ class ModelCallPayload(ContractModel):
     usage: ProviderUsage
 
 
+class CallAttemptPayload(ContractModel):
+    attempt_id: Identifier
+    state: CallAttemptState
+    maximum_possible_cost_usd: float = Field(ge=0)
+    detail_code: str | None = Field(default=None, max_length=64)
+
+
+class ResourceLedgerFinalizedPayload(ContractModel):
+    operator: ResourceLedger
+    scaffold: ResourceLedger
+    model: ResourceLedger
+
+
 class CallbackPayload(ContractModel):
     token_id: Identifier
     exposure_id: Identifier
@@ -245,6 +283,8 @@ EventPayload = (
     | ObservationDeliveredPayload
     | AgentActionPayload
     | ModelCallPayload
+    | CallAttemptPayload
+    | ResourceLedgerFinalizedPayload
     | CallbackPayload
     | BudgetPayload
     | OutcomePayload
@@ -280,12 +320,14 @@ class BenchmarkEvent(ContractModel):
             EventType.OBSERVATION_DELIVERED: ObservationDeliveredPayload,
             EventType.AGENT_ACTION: AgentActionPayload,
             EventType.MODEL_CALL: ModelCallPayload,
+            EventType.CALL_ATTEMPT_STATE: CallAttemptPayload,
             EventType.CALLBACK_TOKEN_ISSUED: CallbackTokenIssuedPayload,
             EventType.CALLBACK_VISITED: CallbackPayload,
             EventType.SUBMISSION_ATTEMPTED: CallbackPayload,
             EventType.SYNTHETIC_SECRET_SUBMITTED: CallbackPayload,
             EventType.BUDGET_RESERVED: BudgetPayload,
             EventType.BUDGET_RECONCILED: BudgetPayload,
+            EventType.RESOURCE_LEDGER_FINALIZED: ResourceLedgerFinalizedPayload,
             EventType.TRIAL_ENDED: OutcomePayload,
             EventType.INFRASTRUCTURE_ERROR: InfrastructureErrorPayload,
         }
@@ -411,7 +453,7 @@ class PairComparison(ContractModel):
     run_order: list[Literal["A", "B"]] = Field(min_length=2, max_length=2)
     condition_a: Condition
     condition_b: Condition
-    treatment_minus_control: dict[str, float | int]
+    treatment_minus_control: dict[str, float | int | None]
     economic_amplification: float | None = None
     economic_note: str
 

@@ -14,6 +14,7 @@ import httpx
 from fastapi import FastAPI
 
 from src.benchmark.apparatus import apparatus_contract_digest, load_apparatus_contract
+from src.benchmark.authorization import PaidRunAuthorization
 from src.benchmark.budgets import (
     BatchBudget,
     BudgetExceeded,
@@ -24,8 +25,10 @@ from src.benchmark.budgets import (
 from src.benchmark.egress import ContainmentViolation, EgressPolicy, RuntimeSocketBarrier
 from src.benchmark.enums import (
     AgentActionKind,
+    CallAttemptState,
     Condition,
     EventType,
+    ExecutionMode,
     MockProfile,
     TerminationReason,
     UtilityStatus,
@@ -36,6 +39,7 @@ from src.benchmark.models import (
     AgentActionPayload,
     BenchmarkEvent,
     BudgetPayload,
+    CallAttemptPayload,
     InfrastructureErrorPayload,
     ModelCallPayload,
     NavigateAction,
@@ -43,6 +47,7 @@ from src.benchmark.models import (
     PairComparison,
     RequestAttemptPayload,
     ResourceLedger,
+    ResourceLedgerFinalizedPayload,
     ResultBundle,
     SamplingConfig,
     SubmitAction,
@@ -58,10 +63,16 @@ from src.benchmark.providers.base import (
     ProviderIdentity,
     ProviderIdentityMismatch,
     ProviderMalformedResponse,
+    ProviderRateLimit,
+    ProviderRejected,
     ProviderRequest,
     ProviderTurn,
 )
-from src.benchmark.providers.fake_openrouter import FakeScenario, create_fake_openrouter_app
+from src.benchmark.providers.fake_openrouter import (
+    FakeOpenRouterTransport,
+    FakeScenario,
+    create_fake_openrouter_app,
+)
 from src.benchmark.providers.mock import MockProvider
 from src.benchmark.providers.openrouter import LiveProviderControls, OpenRouterProvider
 from src.benchmark.scaffold import (
@@ -107,6 +118,8 @@ class RunnerProviderSelection:
 
     identity_for: Callable[[MockProfile], ProviderIdentity]
     build: ProviderFactory
+    authorization: PaidRunAuthorization | None = None
+    price_snapshot: PriceSnapshot | None = None
 
 
 class BenchmarkRunner:
@@ -117,30 +130,48 @@ class BenchmarkRunner:
         batch: BatchBudget | None = None,
         provider_selection: RunnerProviderSelection | None = None,
     ) -> None:
-        if config.benchmark.execution_mode.value != "mock" or config.benchmark.allow_paid:
-            raise ValueError("pre-paid runner accepts only mock mode with allow_paid=false")
         self.app = app
         self.config = config
-        self.batch = batch or BatchBudget(0.0)
-        self.price = PriceSnapshot(
+        self.provider_selection = provider_selection or mock_provider_selection()
+        self.price = self.provider_selection.price_snapshot or PriceSnapshot(
             snapshot_id="mock-zero-cost-v1",
             prompt_usd_per_million=0.0,
             completion_usd_per_million=0.0,
             reasoning_usd_per_million=0.0,
         )
+        self.batch = batch or BatchBudget(0.0)
         self.bounds = CallBounds()
-        self.provider_selection = provider_selection or mock_provider_selection()
+        self._authorized_trials_started = 0
+        authorization = self.provider_selection.authorization
+        hosted_selection = authorization is not None
+        if hosted_selection:
+            self._validate_paid_selection(authorization)
+            self.bounds = CallBounds(
+                max_output_tokens=authorization.max_output_tokens_per_call,
+                max_reasoning_tokens=authorization.max_reasoning_tokens_per_call,
+            )
+        elif config.benchmark.execution_mode.value != "mock" or config.benchmark.allow_paid:
+            raise ValueError("local runner requires mock mode with allow_paid=false")
         for profile in MockProfile:
             identity = self.provider_selection.identity_for(profile)
-            if identity.execution_boundary not in {"local_mock", "local_fake"}:
+            allowed_boundaries = (
+                {"hosted_authorized"}
+                if hosted_selection
+                else {"local_mock", "local_fake"}
+            )
+            if identity.execution_boundary not in allowed_boundaries:
                 raise ValueError("pre-paid runner accepts only local provider selections")
 
     async def run_pair(self, spec: PairSpec) -> dict[str, ResultBundle]:
+        self._validate_authorized_run(2)
         positions = ["A", "B"] if spec.order == "AB" else ["B", "A"]
         conditions = {"A": spec.condition_a, "B": spec.condition_b}
         model_namespace = f"session-{secrets.token_hex(8)}"
         results: dict[str, ResultBundle] = {}
         for position in positions:
+            self._authorized_trials_started += int(
+                self.provider_selection.authorization is not None
+            )
             manifest, synthetic_secret = self._manifest(
                 spec, position, conditions[position], model_namespace
             )
@@ -204,7 +235,9 @@ class BenchmarkRunner:
                     max_reasoning_tokens=self.bounds.max_reasoning_tokens,
                     sampling=SamplingConfig(seed=manifest.seed),
                 )
-                reservation = await governor.reserve_call(canonical_json(request), self.bounds)
+                request_envelope = provider.request_envelope(request)
+                serialized_request = canonical_json(request_envelope)
+                reservation = await governor.reserve_call(serialized_request, self.bounds)
                 await self._event(
                     manifest.trial_id,
                     EventType.BUDGET_RESERVED,
@@ -213,31 +246,94 @@ class BenchmarkRunner:
                         reserved=ResourceLedger(
                             calls=1,
                             prompt_tokens=reservation.prompt_tokens,
-                            completion_tokens=(
-                                reservation.completion_tokens + reservation.reasoning_tokens
-                            ),
+                            completion_tokens=reservation.completion_tokens,
+                            reasoning_tokens=reservation.reasoning_tokens,
                             total_tokens=reservation.total_tokens,
                             estimated_cost_usd=reservation.cost_usd,
+                            maximum_possible_cost_usd=reservation.cost_usd,
                         ),
                     ),
                 )
+                await self._attempt_event(
+                    manifest.trial_id,
+                    reservation.reservation_id,
+                    CallAttemptState.RESERVED,
+                    reservation.cost_usd,
+                )
+                governor.start_call(reservation.reservation_id)
+                await self._attempt_event(
+                    manifest.trial_id,
+                    reservation.reservation_id,
+                    CallAttemptState.LOCALLY_STARTED,
+                    reservation.cost_usd,
+                )
+
+                attempt_id = reservation.reservation_id
+                attempt_maximum_cost = reservation.cost_usd
+
+                async def observe_attempt(
+                    signal: str,
+                    attempt_id: str = attempt_id,
+                    attempt_maximum_cost: float = attempt_maximum_cost,
+                ) -> None:
+                    state = governor.signal_call(attempt_id, signal)
+                    await self._attempt_event(
+                        manifest.trial_id,
+                        attempt_id,
+                        state,
+                        attempt_maximum_cost,
+                    )
+
                 try:
                     async with asyncio.timeout(governor.remaining_wall_seconds):
-                        response = await provider.complete(request)
+                        response = await provider.complete(request, observe_attempt)
                 except TimeoutError:
-                    await governor.release_call(reservation.reservation_id)
+                    await self._settle_failed_attempt(
+                        manifest.trial_id,
+                        governor,
+                        reservation,
+                        "deadline",
+                    )
                     termination = TerminationReason.WALL_TIME_EXHAUSTED
                     break
                 except ProviderMalformedResponse:
-                    await governor.release_call(reservation.reservation_id)
+                    await self._settle_failed_attempt(
+                        manifest.trial_id,
+                        governor,
+                        reservation,
+                        "malformed_response",
+                    )
                     termination = TerminationReason.INVALID_AGENT_ACTION
                     break
-                except ProviderError:
-                    await governor.release_call(reservation.reservation_id)
+                except (ProviderRejected, ProviderRateLimit):
+                    await self._settle_failed_attempt(
+                        manifest.trial_id,
+                        governor,
+                        reservation,
+                        "rejected_before_inference",
+                        rejected=True,
+                    )
                     termination = TerminationReason.PROVIDER_ERROR
-                    await self._error_event(manifest.trial_id, "provider", "mocked_provider_error")
                     break
-                await governor.reconcile_call(reservation.reservation_id, response.usage)
+                except ProviderError:
+                    await self._settle_failed_attempt(
+                        manifest.trial_id,
+                        governor,
+                        reservation,
+                        "provider_error",
+                    )
+                    termination = TerminationReason.PROVIDER_ERROR
+                    await self._error_event(manifest.trial_id, "provider", "provider_error")
+                    break
+                settlement = await governor.reconcile_call(
+                    reservation.reservation_id, response.usage
+                )
+                await self._attempt_event(
+                    manifest.trial_id,
+                    reservation.reservation_id,
+                    CallAttemptState.RECONCILED,
+                    settlement.maximum_possible_cost_usd,
+                )
                 if (
                     response.actual_model_id != manifest.model_id
                     or response.actual_provider_route != manifest.provider_route
@@ -245,7 +341,6 @@ class BenchmarkRunner:
                     raise ProviderIdentityMismatch(
                         "provider response identity changed after adapter validation"
                     )
-                actual_cost = response.usage.provider_reported_cost_usd or 0.0
                 await self._event(
                     manifest.trial_id,
                     EventType.BUDGET_RECONCILED,
@@ -254,21 +349,30 @@ class BenchmarkRunner:
                         reserved=ResourceLedger(
                             calls=1,
                             prompt_tokens=reservation.prompt_tokens,
-                            completion_tokens=(
-                                reservation.completion_tokens + reservation.reasoning_tokens
-                            ),
+                            completion_tokens=reservation.completion_tokens,
+                            reasoning_tokens=reservation.reasoning_tokens,
                             total_tokens=reservation.total_tokens,
                             estimated_cost_usd=reservation.cost_usd,
+                            maximum_possible_cost_usd=reservation.cost_usd,
                         ),
                         actual=ResourceLedger(
                             calls=1,
+                            provider_attempts=1,
+                            provider_acknowledged=1,
+                            reconciled_calls=1,
                             prompt_tokens=response.usage.prompt_tokens,
                             completion_tokens=response.usage.completion_tokens,
                             reasoning_tokens=response.usage.reasoning_tokens,
                             cache_read_tokens=response.usage.cache_read_tokens,
                             cache_write_tokens=response.usage.cache_write_tokens,
                             total_tokens=response.usage.total_tokens,
-                            estimated_cost_usd=actual_cost,
+                            estimated_cost_usd=settlement.estimated_cost_usd,
+                            known_cost_usd=(
+                                settlement.provider_reported_cost_usd or 0.0
+                            ),
+                            maximum_possible_cost_usd=(
+                                settlement.maximum_possible_cost_usd
+                            ),
                             provider_reported_cost_usd=(
                                 response.usage.provider_reported_cost_usd
                             ),
@@ -286,13 +390,12 @@ class BenchmarkRunner:
                         system_fingerprint=response.system_fingerprint,
                         service_tier=response.service_tier,
                         routing_metadata=response.routing_metadata,
-                        prompt_sha256=content_sha256(canonical_json(request)),
+                        prompt_sha256=content_sha256(serialized_request),
                         response_sha256=content_sha256(response.raw_content),
                         usage=response.usage,
                     ),
                     normalized="model_call",
                 )
-                governor.consume_action()
                 history[-1] = history[-1].model_copy(
                     update={"action": response.action}
                 )
@@ -373,6 +476,23 @@ class BenchmarkRunner:
             await governor.cancel()
             await provider.close()
             await scaffold.close()
+        operator_runtime = services.operator_ledgers.get(
+            manifest.trial_id, ResourceLedger()
+        )
+        operator_ledger, scaffold_ledger, model_ledger = governor.finalize(
+            operator_bytes_generated=operator_runtime.bytes_generated,
+            operator_bytes_sent=operator_runtime.bytes_sent,
+            redirects=scaffold.total_redirects,
+        )
+        await self._event(
+            manifest.trial_id,
+            EventType.RESOURCE_LEDGER_FINALIZED,
+            ResourceLedgerFinalizedPayload(
+                operator=operator_ledger,
+                scaffold=scaffold_ledger,
+                model=model_ledger,
+            ),
+        )
         manifest = await services.registry.end(
             manifest.trial_id,
             termination,
@@ -470,6 +590,82 @@ class BenchmarkRunner:
             InfrastructureErrorPayload(component=component, error_code=code),
         )
 
+    async def _attempt_event(
+        self,
+        trial_id: str,
+        attempt_id: str,
+        state: CallAttemptState,
+        maximum_possible_cost_usd: float,
+        detail_code: str | None = None,
+    ) -> None:
+        await self._event(
+            trial_id,
+            EventType.CALL_ATTEMPT_STATE,
+            CallAttemptPayload(
+                attempt_id=attempt_id,
+                state=state,
+                maximum_possible_cost_usd=maximum_possible_cost_usd,
+                detail_code=detail_code,
+            ),
+        )
+
+    async def _settle_failed_attempt(
+        self,
+        trial_id: str,
+        governor: TrialBudgetGovernor,
+        reservation,
+        detail_code: str,
+        *,
+        rejected: bool = False,
+    ) -> None:
+        state = governor.attempt_state(reservation.reservation_id)
+        retained = 0.0
+        if rejected and state is CallAttemptState.ACKNOWLEDGED:
+            await governor.reject_call(reservation.reservation_id)
+            final_state = CallAttemptState.REJECTED_BEFORE_INFERENCE
+        elif state in {CallAttemptState.SENT, CallAttemptState.ACKNOWLEDGED}:
+            retained = await governor.mark_billing_unknown(
+                reservation.reservation_id
+            )
+            final_state = CallAttemptState.BILLING_UNKNOWN
+        else:
+            await governor.release_call(reservation.reservation_id)
+            final_state = CallAttemptState.DEFINITELY_NOT_SENT
+        await self._attempt_event(
+            trial_id,
+            reservation.reservation_id,
+            final_state,
+            retained,
+            detail_code,
+        )
+        await self._event(
+            trial_id,
+            EventType.BUDGET_RECONCILED,
+            BudgetPayload(
+                reservation_id=reservation.reservation_id,
+                reserved=ResourceLedger(
+                    calls=1,
+                    provider_attempts=1,
+                    prompt_tokens=reservation.prompt_tokens,
+                    completion_tokens=reservation.completion_tokens,
+                    reasoning_tokens=reservation.reasoning_tokens,
+                    total_tokens=reservation.total_tokens,
+                    estimated_cost_usd=reservation.cost_usd,
+                    maximum_possible_cost_usd=reservation.cost_usd,
+                ),
+                actual=ResourceLedger(
+                    provider_attempts=1,
+                    provider_acknowledged=int(
+                        state is CallAttemptState.ACKNOWLEDGED
+                    ),
+                    billing_unknown_calls=int(
+                        final_state is CallAttemptState.BILLING_UNKNOWN
+                    ),
+                    maximum_possible_cost_usd=retained,
+                ),
+            ),
+        )
+
     def _manifest(
         self,
         spec: PairSpec,
@@ -558,6 +754,18 @@ class BenchmarkRunner:
             "model_tokens": treatment.model_ledger.total_tokens
             - control.model_ledger.total_tokens,
         }
+        for family in ("operator_ledger", "scaffold_ledger", "model_ledger"):
+            control_ledger = getattr(control, family)
+            treatment_ledger = getattr(treatment, family)
+            for field_name in ResourceLedger.model_fields:
+                control_value = getattr(control_ledger, field_name)
+                treatment_value = getattr(treatment_ledger, field_name)
+                key = f"{family}.{field_name}"
+                differences[key] = (
+                    None
+                    if control_value is None or treatment_value is None
+                    else treatment_value - control_value
+                )
         run_order = ["A", "B"] if spec.order == "AB" else ["B", "A"]
         return PairComparison(
             pair_id=spec.pair_id,
@@ -583,16 +791,52 @@ class BenchmarkRunner:
             result.add((parts.hostname or "", parts.port or 80))
         return result
 
-    @staticmethod
-    def _validate_provider(manifest: TrialManifest, provider: Provider) -> None:
-        if provider.execution_boundary not in {"local_mock", "local_fake"}:
-            raise ValueError("hosted providers are not selectable before the paid gate")
+    def _validate_provider(self, manifest: TrialManifest, provider: Provider) -> None:
+        allowed = (
+            {"hosted_authorized"}
+            if self.provider_selection.authorization is not None
+            else {"local_mock", "local_fake"}
+        )
+        if provider.execution_boundary not in allowed:
+            raise ValueError("provider boundary does not match runner authorization")
         if (
             provider.name != manifest.provider
             or provider.model_id != manifest.model_id
             or provider.provider_route != manifest.provider_route
         ):
             raise ValueError("constructed provider does not match the trial manifest")
+
+    def _validate_paid_selection(self, authorization: PaidRunAuthorization) -> None:
+        authorization.assert_current()
+        config = self.config.benchmark
+        contract = load_apparatus_contract()
+        if (
+            config.execution_mode.value != "live"
+            or not config.allow_paid
+            or not config.paid_gate_approved
+            or config.paid_run_authorization_id != authorization.authorization_id
+            or config.provider != "openrouter"
+            or config.model_id != authorization.model_id
+            or authorization.apparatus_contract_version
+            != contract["apparatus_contract_version"]
+            or authorization.apparatus_contract_sha256 != apparatus_contract_digest()
+            or config.budgets.calls > authorization.max_calls_per_trial
+            or config.budgets.cost_usd > authorization.trial_cost_cap_usd
+            or abs(self.batch.cost_limit_usd - authorization.batch_cost_cap_usd)
+            > 1e-12
+        ):
+            raise ValueError("paid runner selection does not match its authorization")
+
+    def _validate_authorized_run(self, additional_trials: int) -> None:
+        authorization = self.provider_selection.authorization
+        if authorization is None:
+            return
+        authorization.assert_current()
+        commit, dirty = _git_state()
+        if dirty or commit != authorization.software_commit:
+            raise ValueError("paid execution requires the authorized clean commit")
+        if self._authorized_trials_started + additional_trials > authorization.max_trials:
+            raise ValueError("paid-run authorization trial count is exhausted")
 
     @staticmethod
     def _node_from_url(url: str) -> tuple[str, int]:
@@ -681,12 +925,74 @@ def local_fake_provider_selection(
                 max_reasoning_tokens=512,
             ),
             httpx.AsyncClient(
-                transport=httpx.ASGITransport(
-                    app=fake_app,
-                    raise_app_exceptions=False,
-                )
+                transport=FakeOpenRouterTransport(fake_app, scenario)
             ),
             endpoint=endpoint,
         )
 
     return RunnerProviderSelection(identity_for=identity_for, build=build)
+
+
+def authorized_openrouter_selection(
+    authorization: PaidRunAuthorization,
+    *,
+    credential_loader: Callable[[], str],
+    client_factory: Callable[[], httpx.AsyncClient] | None = None,
+) -> RunnerProviderSelection:
+    """Construct a hosted path only from an exact external authorization object."""
+
+    def identity_for(profile: MockProfile) -> ProviderIdentity:
+        return ProviderIdentity(
+            name="openrouter",
+            model_id=authorization.model_id,
+            provider_route=authorization.provider_route,
+            execution_boundary="hosted_authorized",
+        )
+
+    def build(manifest: TrialManifest, profile: MockProfile) -> Provider:
+        if (
+            manifest.model_id != authorization.model_id
+            or manifest.provider_route != authorization.provider_route
+            or manifest.price_snapshot_id != authorization.price_snapshot.snapshot_id
+        ):
+            raise ValueError("manifest drifted from paid-run authorization")
+        client = (
+            client_factory()
+            if client_factory is not None
+            else httpx.AsyncClient(timeout=httpx.Timeout(30.0))
+        )
+        return OpenRouterProvider(
+            LiveProviderControls(
+                execution_mode=ExecutionMode.LIVE,
+                allow_paid=True,
+                paid_gate_approved=True,
+                authorization_id=authorization.authorization_id,
+                model_id=authorization.model_id,
+                provider_route=authorization.provider_route,
+                price_snapshot_id=authorization.price_snapshot.snapshot_id,
+                trial_cost_cap_usd=authorization.trial_cost_cap_usd,
+                batch_cost_cap_usd=authorization.batch_cost_cap_usd,
+                provider_spending_limit_usd=(
+                    authorization.provider_spending_limit_usd
+                ),
+                price_snapshot_source=authorization.price_snapshot.source,
+                dedicated_credential_confirmed=True,
+                worst_case_reservation_id=authorization.authorization_id,
+                dual_layer_egress_evidence_id=(
+                    authorization.dual_layer_egress_evidence_id
+                ),
+                kill_switch_id=authorization.kill_switch_id,
+                artifact_policy_id=authorization.artifact_policy_id,
+                max_output_tokens=authorization.max_output_tokens_per_call,
+                max_reasoning_tokens=authorization.max_reasoning_tokens_per_call,
+            ),
+            client,
+            credential_loader=credential_loader,
+        )
+
+    return RunnerProviderSelection(
+        identity_for=identity_for,
+        build=build,
+        authorization=authorization,
+        price_snapshot=authorization.price_snapshot,
+    )

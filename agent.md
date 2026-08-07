@@ -81,11 +81,15 @@ Read these files before changing the benchmark:
   action explicitly identifies the repeating or deceptive behavior. There is
   no model-facing recognition flag or trap-specific action. Do not infer
   private reasoning.
-- HTTP and call limits are checked before corresponding local work, but current
-  action capacity is consumed after the provider response and uncertain
-  provider failures release reservations. These are paid-run blockers. Do not
-  enable real-provider selection until pre-call action reservation and
-  conservative unknown-billing accounting are implemented and tested.
+- Calls and their possible actions are reserved together before provider work.
+  Once a request crosses the local send handoff, unresolved billing retains the
+  full worst-case reservation. Never simplify a timeout, disconnect, malformed
+  response, or identity mismatch into a free call.
+- A hosted provider factory exists only behind an explicit, expiring
+  `PaidRunAuthorization`, an exact clean commit, an injected credential loader,
+  and matching protocol, price, route, and budget identities. Checked-in
+  configuration cannot activate it. Do not construct or run it without the
+  user's approval of the final authorization packet.
 - Trial creation, start, and end each commit their lifecycle event atomically.
   Event sequences are allocated inside the SQLite write transaction; distinct
   event-ID collisions fail rather than disappearing silently.

@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from src.benchmark.conditions import ConditionRenderer, InjectionMaterial
 from src.benchmark.enums import Condition, EventType
 from src.benchmark.event_sink import InvalidEventToken, TrialEventSink
-from src.benchmark.models import BenchmarkEvent, PageServedPayload, TrialManifest
+from src.benchmark.models import BenchmarkEvent, PageServedPayload, ResourceLedger, TrialManifest
 from src.benchmark.registry import (
     EndedTrial,
     InactiveTrial,
@@ -33,9 +33,17 @@ class BenchmarkServices:
     event_sink: TrialEventSink
     trial_secrets: dict[str, str] = field(default_factory=dict)
     pending_injections: dict[str, dict[str, InjectionMaterial]] = field(default_factory=dict)
+    operator_ledgers: dict[str, ResourceLedger] = field(default_factory=dict)
 
     def register_trial_secret(self, trial_id: str, secret: str) -> None:
         self.trial_secrets[trial_id] = secret
+        self.operator_ledgers[trial_id] = ResourceLedger()
+
+    def record_page_bytes(self, trial_id: str, byte_count: int) -> None:
+        ledger = self.operator_ledgers.setdefault(trial_id, ResourceLedger())
+        ledger.bytes_generated += byte_count
+        ledger.bytes_sent += byte_count
+        ledger.bytes_served += byte_count
 
     def add_injection(self, trial_id: str, injection: InjectionMaterial) -> None:
         self.pending_injections.setdefault(trial_id, {})[injection.payload_id] = injection
@@ -43,6 +51,7 @@ class BenchmarkServices:
     def clear_trial_runtime(self, trial_id: str) -> None:
         self.trial_secrets.pop(trial_id, None)
         self.pending_injections.pop(trial_id, None)
+        self.operator_ledgers.pop(trial_id, None)
 
 
 class SyntheticSubmission(BaseModel):
@@ -154,4 +163,5 @@ async def benchmark_page(model_namespace: str, page_path: str, request: Request)
         ),
     )
     await services.database.record_page_event(event)
+    services.record_page_bytes(manifest.trial_id, len(page.html.encode()))
     return HTMLResponse(page.html)

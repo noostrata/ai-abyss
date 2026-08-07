@@ -7,6 +7,7 @@ import json
 import secrets
 from typing import Literal
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -22,7 +23,12 @@ FakeScenario = Literal[
     "schema_invalid",
     "delayed",
     "provider_error",
+    "rejected",
+    "rate_limited",
+    "disconnect_before_receipt",
+    "disconnect_after_receipt",
     "missing_usage",
+    "missing_cost",
     "reasoning_tokens",
     "wrong_model",
     "wrong_provider",
@@ -49,6 +55,10 @@ def create_fake_openrouter_app(
         _validate_request(body, model_id, provider_route)
         if scenario == "provider_error":
             raise HTTPException(status_code=503, detail="synthetic provider failure")
+        if scenario == "rejected":
+            raise HTTPException(status_code=400, detail="synthetic rejected request")
+        if scenario == "rate_limited":
+            raise HTTPException(status_code=429, detail="synthetic rate limit")
         if scenario == "delayed":
             await asyncio.sleep(delay_seconds)
         turns = _trajectory_from_messages(body["messages"])
@@ -84,7 +94,6 @@ def create_fake_openrouter_app(
                 "prompt_tokens": usage.prompt_tokens,
                 "completion_tokens": usage.completion_tokens,
                 "total_tokens": usage.total_tokens,
-                "cost": 0.0,
                 "completion_tokens_details": {
                     "reasoning_tokens": usage.reasoning_tokens,
                 },
@@ -93,9 +102,31 @@ def create_fake_openrouter_app(
                     "cache_write_tokens": 0,
                 },
             }
+            if scenario != "missing_cost":
+                response_body["usage"]["cost"] = 0.0
         return JSONResponse(response_body)
 
     return app
+
+
+class FakeOpenRouterTransport(httpx.AsyncBaseTransport):
+    """ASGI transport with deterministic disconnect boundaries."""
+
+    def __init__(self, app: FastAPI, scenario: FakeScenario) -> None:
+        self.inner = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        self.scenario = scenario
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if self.scenario == "disconnect_before_receipt":
+            raise httpx.ConnectError("synthetic disconnect before receipt", request=request)
+        response = await self.inner.handle_async_request(request)
+        if self.scenario == "disconnect_after_receipt":
+            await response.aclose()
+            raise httpx.ReadError("synthetic disconnect after receipt", request=request)
+        return response
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
 
 
 def _validate_request(body: dict, model_id: str, provider_route: str) -> None:

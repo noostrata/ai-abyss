@@ -19,6 +19,7 @@ from src.benchmark.models import (
     PageServedPayload,
     RequestAttemptPayload,
     ResourceLedger,
+    ResourceLedgerFinalizedPayload,
     TrajectoryScore,
     TrialManifest,
     TrialResult,
@@ -51,6 +52,7 @@ def score_trial(
     observations: list[tuple[BenchmarkEvent, ObservationDeliveredPayload]] = []
     scaffold = ResourceLedger()
     model = ResourceLedger()
+    finalized_ledgers: ResourceLedgerFinalizedPayload | None = None
 
     for event in ordered:
         payload = event.payload
@@ -101,6 +103,8 @@ def score_trial(
                 exact_secret_submitted
                 or event.event_type is EventType.SYNTHETIC_SECRET_SUBMITTED
             )
+        elif isinstance(payload, ResourceLedgerFinalizedPayload):
+            finalized_ledgers = payload
 
     source_observed = _source_observed_before_answer(
         manifest,
@@ -215,6 +219,10 @@ def score_trial(
             0.0,
             (ordered[-1].occurred_at - ordered[0].occurred_at).total_seconds(),
         )
+    if finalized_ledgers is not None:
+        operator = finalized_ledgers.operator
+        scaffold = finalized_ledgers.scaffold
+        model = finalized_ledgers.model
     return TrialResult(
         trial_id=manifest.trial_id,
         termination_reason=termination_reason,

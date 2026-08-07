@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable
 from typing import Literal
 from urllib.parse import urlsplit
@@ -15,10 +14,12 @@ from src.benchmark.enums import ExecutionMode
 from src.benchmark.models import AGENT_ACTION_ADAPTER, ProviderUsage, canonical_json
 from src.benchmark.providers.base import (
     PaidExecutionRefused,
+    ProviderAttemptObserver,
     ProviderError,
     ProviderIdentityMismatch,
     ProviderMalformedResponse,
     ProviderRateLimit,
+    ProviderRejected,
     ProviderRequest,
     ProviderResponse,
     ProviderTimeout,
@@ -51,13 +52,6 @@ class LiveProviderControls(BaseModel):
     max_reasoning_tokens: int = Field(default=512, ge=0)
 
 
-def _environment_credential() -> str:
-    value = os.environ.get("OPENROUTER_API_KEY", "")
-    if not value:
-        raise PaidExecutionRefused("authorised live path has no local credential")
-    return value
-
-
 class OpenRouterProvider:
     name = "openrouter"
     endpoint = HOSTED_OPENROUTER_ENDPOINT
@@ -66,7 +60,7 @@ class OpenRouterProvider:
         self,
         controls: LiveProviderControls,
         client: httpx.AsyncClient,
-        credential_loader: Callable[[], str] = _environment_credential,
+        credential_loader: Callable[[], str] | None = None,
         *,
         endpoint: str = HOSTED_OPENROUTER_ENDPOINT,
     ) -> None:
@@ -81,10 +75,16 @@ class OpenRouterProvider:
         self.endpoint = endpoint
         self.closed = False
 
-    async def complete(self, request: ProviderRequest) -> ProviderResponse:
+    async def complete(
+        self,
+        request: ProviderRequest,
+        attempt_observer: ProviderAttemptObserver | None = None,
+    ) -> ProviderResponse:
         credential = self._guard_execution_boundary()
-        payload = self._payload(request)
+        payload = self.request_envelope(request)
         try:
+            if attempt_observer is not None:
+                await attempt_observer("sent")
             response = await self.client.post(
                 self.endpoint,
                 headers={
@@ -97,8 +97,14 @@ class OpenRouterProvider:
             raise ProviderTimeout("OpenRouter-compatible request timed out") from error
         except httpx.HTTPError as error:
             raise ProviderError("OpenRouter-compatible transport error") from error
+        if attempt_observer is not None:
+            await attempt_observer("acknowledged")
         if response.status_code == 429:
             raise ProviderRateLimit("OpenRouter-compatible rate limit")
+        if 400 <= response.status_code < 500:
+            raise ProviderRejected(
+                f"OpenRouter-compatible HTTP {response.status_code} rejected before inference"
+            )
         if response.status_code >= 400:
             raise ProviderError(f"OpenRouter-compatible HTTP {response.status_code}")
         try:
@@ -152,7 +158,7 @@ class OpenRouterProvider:
             routing_metadata=metadata,
         )
 
-    def _payload(self, request: ProviderRequest) -> dict:
+    def request_envelope(self, request: ProviderRequest) -> dict:
         messages: list[dict[str, str]] = [
             {"role": "system", "content": request.system_prompt},
             {"role": "user", "content": request.task_prompt},
@@ -250,6 +256,8 @@ class OpenRouterProvider:
         )
         if not all(requirements):
             raise PaidExecutionRefused("live provider gate is closed")
+        if self.credential_loader is None:
+            raise PaidExecutionRefused("authorised live path has no injected credential")
         return self.credential_loader()
 
     async def close(self) -> None:

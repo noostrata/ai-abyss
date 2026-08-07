@@ -13,9 +13,14 @@ from src.benchmark.enums import (
     TerminationReason,
 )
 from src.benchmark.export import ArtifactIntegrityError, replay_trial
-from src.benchmark.models import AGENT_ACTION_ADAPTER, ObservationDeliveredPayload
+from src.benchmark.models import (
+    AGENT_ACTION_ADAPTER,
+    ObservationDeliveredPayload,
+    ResourceLedger,
+)
 from src.benchmark.providers.base import (
     PaidExecutionRefused,
+    ProviderIdentity,
     ProviderIdentityMismatch,
     ProviderMalformedResponse,
     ProviderRateLimit,
@@ -29,6 +34,7 @@ from src.benchmark.providers.openrouter import LiveProviderControls, OpenRouterP
 from src.benchmark.runner import (
     BenchmarkRunner,
     PairSpec,
+    RunnerProviderSelection,
     local_fake_provider_selection,
 )
 from src.benchmark.scaffold import SYSTEM_PROMPT, Observation
@@ -137,6 +143,15 @@ async def test_openrouter_default_refuses_before_credential_or_request(httpx_moc
     with pytest.raises(PaidExecutionRefused):
         await provider.complete(_request())
     assert credential_loaded is False
+    assert httpx_mock.get_requests() == []
+    await provider.close()
+
+    provider = OpenRouterProvider(
+        _authorised_mock_controls(),
+        httpx.AsyncClient(),
+    )
+    with pytest.raises(PaidExecutionRefused, match="no injected credential"):
+        await provider.complete(_request())
     assert httpx_mock.get_requests() == []
     await provider.close()
 
@@ -342,6 +357,21 @@ async def test_local_fake_openrouter_rejects_identity_drift(scenario):
     await provider.close()
 
 
+@pytest.mark.parametrize(
+    ("scenario", "reasoning_tokens"),
+    [("missing_cost", 0), ("reasoning_tokens", 2)],
+)
+async def test_local_fake_openrouter_preserves_native_usage_variants(
+    scenario, reasoning_tokens
+):
+    provider, _ = _local_fake_provider(scenario=scenario)
+    response = await provider.complete(_request())
+    assert response.usage.reasoning_tokens == reasoning_tokens
+    if scenario == "missing_cost":
+        assert response.usage.provider_reported_cost_usd is None
+    await provider.close()
+
+
 async def test_local_fake_boundary_parses_loopback_origin_strictly():
     provider = OpenRouterProvider(
         LiveProviderControls(
@@ -399,6 +429,58 @@ async def test_runner_uses_local_fake_provider_through_complete_lifecycle(
         assert calls
         assert {call.provider_route for call in calls} == {"FakeLocal"}
         assert {call.system_fingerprint for call in calls} == {"fake-openrouter-v1"}
+    summary = json.loads((tmp_path / "fake-provider-e2e" / "pair_summary.json").read_text())
+    ledger_fields = {
+        key for key in summary["treatment_minus_control"] if key.startswith("model_ledger.")
+    }
+    assert ledger_fields == {
+        f"model_ledger.{name}" for name in ResourceLedger.model_fields
+    }
+
+
+async def test_paired_serialized_provider_envelopes_match_before_declared_divergence(
+    benchmark_app, tmp_path
+):
+    captured: dict[str, list[dict]] = {"A": [], "B": []}
+
+    class CapturingMockProvider(MockProvider):
+        def __init__(self, profile, position):
+            super().__init__(profile)
+            self.position = position
+
+        async def complete(self, request, attempt_observer=None):
+            captured[self.position].append(self.request_envelope(request))
+            return await super().complete(request, attempt_observer)
+
+    selection = RunnerProviderSelection(
+        identity_for=lambda profile: ProviderIdentity(
+            name="mock",
+            model_id=f"mock/{profile.value}-v1",
+            provider_route="mock-local-no-network",
+            execution_boundary="local_mock",
+        ),
+        build=lambda manifest, profile: CapturingMockProvider(
+            profile, manifest.pair_position
+        ),
+    )
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    await BenchmarkRunner(
+        benchmark_app,
+        config,
+        provider_selection=selection,
+    ).run_pair(
+        PairSpec(
+            pair_id="envelope-equivalence",
+            condition_a=Condition.FINITE_GRAPH_CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.RECURSIVE_FOLLOWER,
+            seed=1111,
+            order="BA",
+        )
+    )
+    assert captured["A"][:5] == captured["B"][:5]
+    assert captured["A"][5] != captured["B"][5]
 
 
 async def test_runner_recursive_cycle_censor_and_replay(
@@ -607,6 +689,144 @@ async def test_runner_hard_deadline_interrupts_active_provider(
         TerminationReason.WALL_TIME_EXHAUSTED
     }
     assert runner.batch.reserved_cost_usd == 0.0
+    assert all(bundle.result.model_ledger.provider_attempts == 1 for bundle in bundles.values())
+    assert all(
+        bundle.result.model_ledger.billing_unknown_calls == 1
+        for bundle in bundles.values()
+    )
+
+
+async def test_runner_action_boundary_stops_before_an_extra_provider_attempt(
+    benchmark_app, tmp_path
+):
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    config.benchmark.budgets.actions = 1
+    runner = BenchmarkRunner(benchmark_app, config)
+    bundles = await runner.run_pair(
+        PairSpec(
+            pair_id="action-precall-boundary",
+            condition_a=Condition.CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.TASK_SOLVER,
+            seed=909,
+            order="AB",
+        )
+    )
+    assert {bundle.result.termination_reason for bundle in bundles.values()} == {
+        TerminationReason.ACTIONS_EXHAUSTED
+    }
+    assert all(bundle.result.model_ledger.provider_attempts == 1 for bundle in bundles.values())
+    assert all(bundle.result.scaffold_ledger.actions == 1 for bundle in bundles.values())
+
+
+@pytest.mark.parametrize(
+    ("scenario", "reason"),
+    [
+        ("missing_usage", TerminationReason.INVALID_AGENT_ACTION),
+        ("wrong_model", TerminationReason.PROVIDER_ERROR),
+        ("provider_error", TerminationReason.PROVIDER_ERROR),
+    ],
+)
+async def test_runner_retains_unknown_billing_after_fake_provider_receipt(
+    benchmark_app, tmp_path, scenario, reason
+):
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    runner = BenchmarkRunner(
+        benchmark_app,
+        config,
+        provider_selection=local_fake_provider_selection(scenario=scenario),
+    )
+    bundles = await runner.run_pair(
+        PairSpec(
+            pair_id=f"unknown-billing-{scenario}",
+            condition_a=Condition.CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.TASK_SOLVER,
+            seed=1001,
+            order="AB",
+        )
+    )
+    assert {bundle.result.termination_reason for bundle in bundles.values()} == {reason}
+    assert all(
+        bundle.result.model_ledger.billing_unknown_calls == 1
+        for bundle in bundles.values()
+    )
+    for bundle in bundles.values():
+        events = await benchmark_app.state.benchmark_services.database.events_for_trial(
+            bundle.manifest.trial_id
+        )
+        states = [
+            event.payload.state.value
+            for event in events
+            if event.event_type.value == "call_attempt_state"
+        ]
+        assert states == [
+            "reserved",
+            "locally_started",
+            "sent",
+            "acknowledged",
+            "billing_unknown",
+        ]
+
+
+@pytest.mark.parametrize("scenario", ["rejected", "rate_limited"])
+async def test_runner_releases_explicit_pre_inference_rejection(
+    benchmark_app, tmp_path, scenario
+):
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    runner = BenchmarkRunner(
+        benchmark_app,
+        config,
+        provider_selection=local_fake_provider_selection(scenario=scenario),
+    )
+    bundles = await runner.run_pair(
+        PairSpec(
+            pair_id=f"rejected-{scenario}",
+            condition_a=Condition.CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.TASK_SOLVER,
+            seed=1002,
+            order="AB",
+        )
+    )
+    assert all(bundle.result.model_ledger.billing_unknown_calls == 0 for bundle in bundles.values())
+    assert all(bundle.result.model_ledger.provider_acknowledged == 1 for bundle in bundles.values())
+    assert runner.batch.reserved_cost_usd == 0
+    assert runner.batch.billing_unknown_cost_usd == 0
+
+
+@pytest.mark.parametrize(
+    ("scenario", "acknowledged"),
+    [("disconnect_before_receipt", 0), ("disconnect_after_receipt", 0)],
+)
+async def test_runner_conservatively_retains_disconnect_after_local_send_handoff(
+    benchmark_app, tmp_path, scenario, acknowledged
+):
+    config = load_config("tests/config_test.yaml")
+    config.benchmark.artifact_dir = str(tmp_path)
+    runner = BenchmarkRunner(
+        benchmark_app,
+        config,
+        provider_selection=local_fake_provider_selection(scenario=scenario),
+    )
+    bundles = await runner.run_pair(
+        PairSpec(
+            pair_id=f"disconnect-{scenario}",
+            condition_a=Condition.CONTROL,
+            condition_b=Condition.RECURSIVE_TRAP,
+            profile=MockProfile.TASK_SOLVER,
+            seed=1003,
+            order="AB",
+        )
+    )
+    assert all(bundle.result.model_ledger.billing_unknown_calls == 1 for bundle in bundles.values())
+    assert all(
+        bundle.result.model_ledger.provider_acknowledged == acknowledged
+        for bundle in bundles.values()
+    )
 
 
 @pytest.mark.parametrize(

@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from src.benchmark.enums import MockProfile
 from src.benchmark.models import AGENT_ACTION_ADAPTER, ProviderUsage, canonical_json
 from src.benchmark.providers.base import (
+    ProviderAttemptObserver,
     ProviderError,
     ProviderMalformedResponse,
     ProviderRequest,
@@ -29,19 +30,27 @@ class MockProvider:
         self.call_count = 0
         self.closed = False
 
-    async def complete(self, request: ProviderRequest) -> ProviderResponse:
+    async def complete(
+        self,
+        request: ProviderRequest,
+        attempt_observer: ProviderAttemptObserver | None = None,
+    ) -> ProviderResponse:
         if self.closed:
             raise ProviderError("mock provider is closed")
         self.call_count += 1
         if self.profile is MockProfile.PROVIDER_FAILURE:
             raise ProviderError("deterministic mocked provider failure")
+        if attempt_observer is not None:
+            await attempt_observer("sent")
         if self.profile is MockProfile.DELAYED:
             await asyncio.sleep(self.delay_seconds)
+        if attempt_observer is not None:
+            await attempt_observer("acknowledged")
         if self.profile is MockProfile.INVALID_ACTION:
             raise ProviderMalformedResponse("deterministic invalid action")
         action = choose_mock_action(self.profile, request.trajectory)
         raw = canonical_json(action)
-        prompt_tokens = max(1, len(canonical_json(request).encode()) // 4)
+        prompt_tokens = max(1, len(canonical_json(self.request_envelope(request)).encode()) // 4)
         completion_tokens = max(1, len(raw.encode()) // 4)
         usage = ProviderUsage(
             prompt_tokens=prompt_tokens,
@@ -58,6 +67,9 @@ class MockProvider:
             actual_provider_route=self.provider_route,
             system_fingerprint="deterministic-mock-v1",
         )
+
+    def request_envelope(self, request: ProviderRequest) -> dict:
+        return request.model_dump(mode="json")
 
     async def close(self) -> None:
         self.closed = True

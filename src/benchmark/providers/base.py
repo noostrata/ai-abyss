@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -72,7 +72,7 @@ class ProviderIdentity(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     model_id: str = Field(min_length=1, max_length=256)
     provider_route: str = Field(min_length=1, max_length=256)
-    execution_boundary: Literal["local_mock", "local_fake"]
+    execution_boundary: Literal["local_mock", "local_fake", "hosted_authorized"]
 
 
 class ProviderError(RuntimeError):
@@ -95,6 +95,12 @@ class ProviderRefused(ProviderError):
     code = "refused"
 
 
+class ProviderRejected(ProviderError):
+    """The provider acknowledged that it rejected the call before inference."""
+
+    code = "rejected_before_inference"
+
+
 class ProviderIdentityMismatch(ProviderError):
     code = "identity_mismatch"
 
@@ -109,9 +115,16 @@ class Provider(Protocol):
     provider_route: str
     execution_boundary: str
 
-    async def complete(self, request: ProviderRequest) -> ProviderResponse: ...
+    def request_envelope(self, request: ProviderRequest) -> dict: ...
+
+    async def complete(
+        self,
+        request: ProviderRequest,
+        attempt_observer: ProviderAttemptObserver | None = None,
+    ) -> ProviderResponse: ...
 
     async def close(self) -> None: ...
 
 
 ProviderFactory = Callable[[TrialManifest, MockProfile], Provider]
+ProviderAttemptObserver = Callable[[Literal["sent", "acknowledged"]], Awaitable[None]]

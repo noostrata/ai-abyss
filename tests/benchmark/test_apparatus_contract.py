@@ -45,5 +45,5 @@ def test_checked_in_runner_cannot_select_hosted_provider(tmp_path: Path) -> None
     )
     config = load_config(config_path)
     app = create_benchmark_app(config_path)
-    with pytest.raises(ValueError, match="pre-paid runner accepts only mock mode"):
+    with pytest.raises(ValueError, match="local runner requires mock mode"):
         BenchmarkRunner(app, config)

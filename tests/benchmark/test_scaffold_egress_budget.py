@@ -314,6 +314,9 @@ async def test_model_call_dimension_boundaries(limits, prompt, bounds, reason):
 async def test_reconciliation_releases_unused_reservation():
     governor = _governor(BudgetLimits())
     reservation = await governor.reserve_call("prompt", CallBounds(10, 10, 10))
+    governor.start_call(reservation.reservation_id)
+    governor.signal_call(reservation.reservation_id, "sent")
+    governor.signal_call(reservation.reservation_id, "acknowledged")
     await governor.reconcile_call(
         reservation.reservation_id,
         ProviderUsage(prompt_tokens=2, completion_tokens=1, total_tokens=3, provider_reported_cost_usd=0),
@@ -339,6 +342,9 @@ async def test_trial_cost_boundary_and_usage_over_reservation():
 
     bounded = _governor(BudgetLimits())
     reservation = await bounded.reserve_call("x", CallBounds(0, 0, 0))
+    bounded.start_call(reservation.reservation_id)
+    bounded.signal_call(reservation.reservation_id, "sent")
+    bounded.signal_call(reservation.reservation_id, "acknowledged")
     with pytest.raises(RuntimeError, match="exceeded"):
         await bounded.reconcile_call(
             reservation.reservation_id,
@@ -367,3 +373,85 @@ async def test_atomic_batch_reservation_prevents_concurrent_overspend():
     reservation = next(result for result in results if not isinstance(result, Exception))
     owner = first if reservation.reservation_id in first._reservations else second
     await owner.release_call(reservation.reservation_id)
+
+
+async def test_action_capacity_is_reserved_before_provider_start():
+    governor = _governor(BudgetLimits(actions=1))
+    reservation = await governor.reserve_call("x", CallBounds(0, 1, 1))
+    with pytest.raises(BudgetExceeded) as error:
+        await governor.reserve_call("x", CallBounds(0, 1, 1))
+    assert error.value.reason is TerminationReason.ACTIONS_EXHAUSTED
+    assert governor.model.provider_attempts == 0
+    await governor.release_call(reservation.reservation_id)
+
+
+async def test_sent_unknown_billing_retains_worst_case_batch_capacity():
+    price = PriceSnapshot(
+        snapshot_id="one-dollar-token",
+        prompt_usd_per_million=1_000_000,
+        completion_usd_per_million=0,
+        reasoning_usd_per_million=0,
+    )
+    batch = BatchBudget(1.0)
+    governor = TrialBudgetGovernor(BudgetLimits(cost_usd=1), batch, price)
+    reservation = await governor.reserve_call("x", CallBounds(0, 0, 0))
+    governor.start_call(reservation.reservation_id)
+    governor.signal_call(reservation.reservation_id, "sent")
+    retained = await governor.mark_billing_unknown(reservation.reservation_id)
+    assert retained == 1.0
+    assert batch.reserved_cost_usd == 0.0
+    assert batch.billing_unknown_cost_usd == 1.0
+    assert batch.maximum_possible_cost_usd == 1.0
+    assert governor.model.billing_unknown_calls == 1
+    with pytest.raises(BudgetExceeded):
+        await TrialBudgetGovernor(BudgetLimits(cost_usd=1), batch, price).reserve_call(
+            "x", CallBounds(0, 0, 0)
+        )
+
+
+async def test_reasoning_is_an_output_subset_and_missing_cost_is_not_zeroed():
+    price = PriceSnapshot(
+        snapshot_id="reasoning-subset",
+        prompt_usd_per_million=1_000_000,
+        completion_usd_per_million=2_000_000,
+        reasoning_usd_per_million=3_000_000,
+    )
+    governor = TrialBudgetGovernor(BudgetLimits(cost_usd=100), BatchBudget(100), price)
+    reservation = await governor.reserve_call("x", CallBounds(0, 5, 2))
+    assert reservation.total_tokens == reservation.prompt_tokens + 5
+    governor.start_call(reservation.reservation_id)
+    governor.signal_call(reservation.reservation_id, "sent")
+    governor.signal_call(reservation.reservation_id, "acknowledged")
+    settlement = await governor.reconcile_call(
+        reservation.reservation_id,
+        ProviderUsage(
+            prompt_tokens=1,
+            completion_tokens=5,
+            reasoning_tokens=2,
+            total_tokens=6,
+        ),
+    )
+    assert settlement.provider_reported_cost_usd is None
+    assert settlement.estimated_cost_usd == 13.0
+    assert governor.model.completion_tokens == 5
+    assert governor.model.reasoning_tokens == 2
+    assert governor.model.total_tokens == 6
+    assert governor.model.provider_reported_cost_usd is None
+    assert governor.model.maximum_possible_cost_usd == 13.0
+
+
+async def test_cancellation_after_send_retains_unknown_billing_reservation():
+    price = PriceSnapshot(
+        snapshot_id="one-dollar-token",
+        prompt_usd_per_million=1_000_000,
+        completion_usd_per_million=0,
+        reasoning_usd_per_million=0,
+    )
+    batch = BatchBudget(1.0)
+    governor = TrialBudgetGovernor(BudgetLimits(cost_usd=1), batch, price)
+    reservation = await governor.reserve_call("x", CallBounds(0, 0, 0))
+    governor.start_call(reservation.reservation_id)
+    governor.signal_call(reservation.reservation_id, "sent")
+    await governor.cancel()
+    assert batch.billing_unknown_cost_usd == 1.0
+    assert governor.model.billing_unknown_calls == 1

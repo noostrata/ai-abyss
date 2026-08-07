@@ -191,6 +191,7 @@ class AgentScaffold:
         self.visited_states: Counter[str] = Counter()
         self.edges: Counter[tuple[str, str]] = Counter()
         self.last_response_bytes = 0
+        self.total_redirects = 0
         self.response_byte_limit: int | None = None
         self.closed = False
 
@@ -231,6 +232,7 @@ class AgentScaffold:
                     if response.status_code == 303:
                         method = "GET"
                         kwargs = {}
+                    self.total_redirects += 1
                     continue
                 content_length = response.headers.get("content-length")
                 if (
