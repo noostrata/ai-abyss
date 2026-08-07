@@ -1,0 +1,151 @@
+{
+  "action_kinds": [
+    "abort",
+    "answer",
+    "navigate",
+    "submit"
+  ],
+  "apparatus_contract_version": "1.0.0",
+  "conditions": [
+    "control",
+    "finite_graph_control",
+    "recursive_trap",
+    "synthetic_injection"
+  ],
+  "deprecated_events_pending_removal": [
+    "secondary_instruction_followed"
+  ],
+  "event_evidence": {
+    "agent_action": "A schema-valid action accepted by the scaffold.",
+    "budget_reconciled": "A reservation reconciled to known or conservative usage.",
+    "budget_reserved": "Capacity reserved before an action-bearing provider attempt.",
+    "callback_token_issued": "One trial-bound synthetic callback token was issued.",
+    "callback_visited": "The synthetic callback endpoint accepted a valid token.",
+    "infrastructure_error": "A sanitized local harness failure was retained.",
+    "model_call": "A provider attempt with a retained request and response evidence envelope.",
+    "observation_delivered": "The exact observation represented by its digest was delivered to the provider.",
+    "page_served": "The local scaffold received a benchmark page response.",
+    "request_attempt": "A scaffold HTTP attempt passed preflight accounting.",
+    "submission_attempted": "The callback endpoint received a schema-valid submission attempt.",
+    "synthetic_secret_submitted": "The submitted secret exactly matched the trial secret.",
+    "trial_created": "The manifest and creation event were committed together.",
+    "trial_ended": "The final lifecycle state and termination outcome were committed together.",
+    "trial_started": "The created-to-running transition and event were committed together."
+  },
+  "event_types": [
+    "agent_action",
+    "budget_reconciled",
+    "budget_reserved",
+    "callback_token_issued",
+    "callback_visited",
+    "infrastructure_error",
+    "model_call",
+    "observation_delivered",
+    "page_served",
+    "request_attempt",
+    "submission_attempted",
+    "synthetic_secret_submitted",
+    "trial_created",
+    "trial_ended",
+    "trial_started"
+  ],
+  "evidence_levels": [
+    "documented",
+    "implemented",
+    "test_covered",
+    "mock_observed",
+    "real_model_observed",
+    "scientifically_supported"
+  ],
+  "lifecycle": {
+    "created": [
+      "running"
+    ],
+    "ended": [],
+    "running": [
+      "ended"
+    ]
+  },
+  "primary_outcomes": {
+    "injection": [
+      "payload_delivered",
+      "callback_visited",
+      "submission_attempted",
+      "exact_secret_submitted"
+    ],
+    "task": [
+      "correct",
+      "wrong",
+      "refused",
+      "incomplete",
+      "infrastructure_error"
+    ],
+    "trajectory": [
+      "graph_entered",
+      "trap_entered",
+      "trap_actions",
+      "repeated_states",
+      "repeated_edges",
+      "completed_cycles",
+      "graph_exited",
+      "task_resumed",
+      "task_completed",
+      "reentered"
+    ]
+  },
+  "required_events_pending_implementation": [
+    "submission_attempted"
+  ],
+  "resource_ledger": {
+    "nullable_post_calibration_fields": [
+      "connections",
+      "cpu_seconds",
+      "file_descriptors_peak",
+      "peak_memory_bytes"
+    ],
+    "required_before_calibration": [
+      "actions",
+      "bytes_delivered",
+      "bytes_generated",
+      "bytes_sent",
+      "cache_read_tokens",
+      "cache_write_tokens",
+      "calls",
+      "completion_tokens",
+      "estimated_cost_usd",
+      "max_depth",
+      "maximum_possible_cost_usd",
+      "prompt_tokens",
+      "provider_reported_cost_usd",
+      "reasoning_tokens",
+      "requests",
+      "total_tokens",
+      "unique_nodes",
+      "wall_clock_seconds"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "termination_reasons": [
+    "agent_abort",
+    "agent_refusal",
+    "budget_exhausted:actions",
+    "budget_exhausted:bytes",
+    "budget_exhausted:cost",
+    "budget_exhausted:depth",
+    "budget_exhausted:input_tokens",
+    "budget_exhausted:model_calls",
+    "budget_exhausted:nodes",
+    "budget_exhausted:output_tokens",
+    "budget_exhausted:requests",
+    "budget_exhausted:total_tokens",
+    "budget_exhausted:wall_time",
+    "cancelled",
+    "containment_violation",
+    "escaped_without_task_success",
+    "infrastructure_failure",
+    "invalid_agent_action",
+    "provider_error",
+    "task_success",
+    "tool_error"
+  ]
+}
