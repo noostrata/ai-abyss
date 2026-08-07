@@ -94,8 +94,10 @@ def run_unpaid_qualification(
         name: _run_checked(command, REPOSITORY_ROOT)
         for name, command in PRIMARY_COMMANDS.items()
     }
-    mock_output = json.loads(checks["mock_rehearsal"].pop("stdout"))
-    fake_output = json.loads(checks["fake_provider_rehearsal"].pop("stdout"))
+    mock_output = _terminal_json(checks["mock_rehearsal"].pop("stdout"))
+    fake_output = _terminal_json(
+        checks["fake_provider_rehearsal"].pop("stdout")
+    )
     if (
         mock_output["hosted_requests"] != 0
         or fake_output["hosted_requests"] != 0
@@ -185,6 +187,21 @@ def _run_checked(command: list[str], cwd: Path) -> dict:
         "output_sha256": content_sha256(combined),
         "stdout": completed.stdout,
     }
+
+
+def _terminal_json(output: str) -> dict:
+    """Parse one terminal JSON object while tolerating preceding app log lines."""
+
+    for index, character in enumerate(output):
+        if character != "{":
+            continue
+        try:
+            parsed = json.loads(output[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    raise ValueError("qualification command did not end with one JSON object")
 
 
 def _verify_clean_checkout(commit: str) -> dict:

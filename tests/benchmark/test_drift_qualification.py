@@ -30,6 +30,20 @@ def test_qualification_refuses_dirty_worktree_before_running_commands(monkeypatc
         qualification.run_unpaid_qualification()
 
 
+def test_qualification_parses_terminal_json_after_application_logs():
+    output = (
+        "2026-08-08 [INFO] startup\n"
+        "2026-08-08 [INFO] shutdown\n"
+        '{"hosted_requests": 0, "credential_loaded": false}\n'
+    )
+    assert qualification._terminal_json(output) == {
+        "hosted_requests": 0,
+        "credential_loaded": False,
+    }
+    with pytest.raises(ValueError, match="one JSON object"):
+        qualification._terminal_json("logs only")
+
+
 def test_evidence_validator_rejects_hosted_or_credential_activity(
     monkeypatch, tmp_path
 ):
