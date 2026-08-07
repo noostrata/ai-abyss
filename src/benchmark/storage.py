@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
+import secrets
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +16,7 @@ SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS benchmark_trials (
     trial_id TEXT PRIMARY KEY,
+    model_namespace TEXT NOT NULL,
     condition TEXT NOT NULL,
     task_id TEXT NOT NULL,
     seed INTEGER NOT NULL,
@@ -93,6 +96,20 @@ class BenchmarkDB:
         self.connection = await aiosqlite.connect(self.path)
         self.connection.row_factory = aiosqlite.Row
         await self.connection.executescript(SCHEMA)
+        columns_cursor = await self.connection.execute("PRAGMA table_info(benchmark_trials)")
+        columns = {row["name"] for row in await columns_cursor.fetchall()}
+        if "model_namespace" not in columns:
+            await self.connection.execute(
+                "ALTER TABLE benchmark_trials ADD COLUMN model_namespace TEXT"
+            )
+            await self.connection.execute(
+                "UPDATE benchmark_trials SET model_namespace = trial_id "
+                "WHERE model_namespace IS NULL"
+            )
+        await self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_benchmark_trials_namespace "
+            "ON benchmark_trials(model_namespace)"
+        )
         await self.connection.commit()
 
     async def close(self) -> None:
@@ -114,10 +131,12 @@ class BenchmarkDB:
                 await connection.execute("BEGIN IMMEDIATE")
                 await connection.execute(
                     """INSERT INTO benchmark_trials
-                    (trial_id, condition, task_id, seed, status, manifest_json, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (trial_id, model_namespace, condition, task_id, seed, status,
+                     manifest_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         manifest.trial_id,
+                        manifest.model_namespace,
                         manifest.condition.value,
                         manifest.task_id,
                         manifest.seed,
@@ -140,6 +159,19 @@ class BenchmarkDB:
         row = await cursor.fetchone()
         return TrialManifest.model_validate_json(row["manifest_json"]) if row else None
 
+    async def trials_for_model_namespace(self, model_namespace: str) -> list[TrialManifest]:
+        cursor = await self._connection().execute(
+            "SELECT manifest_json FROM benchmark_trials WHERE model_namespace = ? "
+            "ORDER BY created_at DESC",
+            (model_namespace,),
+        )
+        rows = await cursor.fetchall()
+        manifests = [
+            TrialManifest.model_validate_json(row["manifest_json"])
+            for row in rows
+        ]
+        return manifests
+
     async def update_trial(
         self, manifest: TrialManifest, lifecycle_event: BenchmarkEvent | None = None
     ) -> None:
@@ -148,9 +180,14 @@ class BenchmarkDB:
             try:
                 await connection.execute("BEGIN IMMEDIATE")
                 cursor = await connection.execute(
-                    """UPDATE benchmark_trials SET status = ?, manifest_json = ?
+                    """UPDATE benchmark_trials SET status = ?, model_namespace = ?, manifest_json = ?
                     WHERE trial_id = ?""",
-                    (manifest.status.value, canonical_json(manifest), manifest.trial_id),
+                    (
+                        manifest.status.value,
+                        manifest.model_namespace,
+                        canonical_json(manifest),
+                        manifest.trial_id,
+                    ),
                 )
                 if cursor.rowcount != 1:
                     raise KeyError(f"unknown trial: {manifest.trial_id}")
@@ -305,32 +342,83 @@ class BenchmarkDB:
                 await connection.rollback()
                 raise
 
-    async def consume_callback_token(self, token_id: str, token_digest: str, now: datetime) -> dict:
+    async def consume_callback_token_with_events(
+        self,
+        *,
+        token_id: str,
+        token_digest: str,
+        now: datetime,
+        submitted_secret_digest: str,
+        claims: dict,
+    ) -> dict:
+        from src.benchmark.enums import EventType
+        from src.benchmark.models import CallbackPayload
+
         connection = self._connection()
         async with self._write_lock:
-            await connection.execute("BEGIN IMMEDIATE")
-            cursor = await connection.execute(
-                "SELECT * FROM benchmark_callback_tokens WHERE token_id = ?", (token_id,)
-            )
-            row = await cursor.fetchone()
-            if row is None:
+            try:
+                await connection.execute("BEGIN IMMEDIATE")
+                cursor = await connection.execute(
+                    "SELECT * FROM benchmark_callback_tokens WHERE token_id = ?", (token_id,)
+                )
+                row = await cursor.fetchone()
+                if row is None:
+                    raise KeyError("unknown token")
+                if row["token_digest"] != token_digest:
+                    raise ValueError("token digest mismatch")
+                if row["used_at"] is not None:
+                    raise ValueError("token already used")
+                if datetime.fromisoformat(row["expires_at"]) <= now:
+                    raise ValueError("token expired")
+                bound_fields = ("trial_id", "condition", "exposure_id", "vector")
+                if any(str(claims.get(field)) != str(row[field]) for field in bound_fields):
+                    raise ValueError("stored token binding mismatch")
+                if claims.get("event") != row["expected_event_type"]:
+                    raise ValueError("stored event-type binding mismatch")
+                matched = hmac.compare_digest(
+                    row["expected_secret_digest"], submitted_secret_digest
+                )
+                event_types = [EventType.CALLBACK_VISITED, EventType.SUBMISSION_ATTEMPTED]
+                if matched:
+                    event_types.append(EventType.SYNTHETIC_SECRET_SUBMITTED)
+                for event_type in event_types:
+                    event = BenchmarkEvent(
+                        event_id=f"evt-{secrets.token_hex(12)}",
+                        trial_id=row["trial_id"],
+                        event_type=event_type,
+                        payload=CallbackPayload(
+                            token_id=row["token_id"],
+                            exposure_id=row["exposure_id"],
+                            vector=row["vector"],
+                            matched_expected_secret=(
+                                matched if event_type is EventType.SUBMISSION_ATTEMPTED else None
+                            ),
+                        ),
+                    )
+                    await self._insert_event_locked(connection, event)
+                    await connection.execute(
+                        """INSERT INTO benchmark_callback_events
+                        (event_id, trial_id, token_id, event_kind, matched_expected_secret)
+                        VALUES (?, ?, ?, ?, ?)""",
+                        (
+                            event.event_id,
+                            event.trial_id,
+                            row["token_id"],
+                            event.event_type.value,
+                            event.payload.matched_expected_secret,
+                        ),
+                    )
+                await connection.execute(
+                    "UPDATE benchmark_callback_tokens SET used_at = ? WHERE token_id = ?",
+                    (now.isoformat(), token_id),
+                )
+                await connection.commit()
+                result = dict(row)
+                result["matched_expected_secret"] = matched
+                return result
+            except Exception:
                 await connection.rollback()
-                raise KeyError("unknown token")
-            if row["token_digest"] != token_digest:
-                await connection.rollback()
-                raise ValueError("token digest mismatch")
-            if row["used_at"] is not None:
-                await connection.rollback()
-                raise ValueError("token already used")
-            if datetime.fromisoformat(row["expires_at"]) <= now:
-                await connection.rollback()
-                raise ValueError("token expired")
-            await connection.execute(
-                "UPDATE benchmark_callback_tokens SET used_at = ? WHERE token_id = ?",
-                (now.isoformat(), token_id),
-            )
-            await connection.commit()
-            return dict(row)
+                raise
 
     async def record_callback_event(self, event: BenchmarkEvent, event_kind: str) -> bool:
         from src.benchmark.models import CallbackPayload
@@ -359,37 +447,6 @@ class BenchmarkDB:
                 )
                 await connection.commit()
                 return True
-            except Exception:
-                await connection.rollback()
-                raise
-
-    async def record_callback_events(self, events: list[BenchmarkEvent]) -> None:
-        from src.benchmark.models import CallbackPayload
-
-        connection = self._connection()
-        async with self._write_lock:
-            try:
-                await connection.execute("BEGIN IMMEDIATE")
-                for event in events:
-                    if not isinstance(event.payload, CallbackPayload):
-                        raise TypeError("callback event requires CallbackPayload")
-                    inserted = await self._insert_event_locked(connection, event)
-                    if not inserted:
-                        continue
-                    payload = event.payload
-                    await connection.execute(
-                        """INSERT INTO benchmark_callback_events
-                        (event_id, trial_id, token_id, event_kind, matched_expected_secret)
-                        VALUES (?, ?, ?, ?, ?)""",
-                        (
-                            event.event_id,
-                            event.trial_id,
-                            payload.token_id,
-                            event.event_type.value,
-                            payload.matched_expected_secret,
-                        ),
-                    )
-                await connection.commit()
             except Exception:
                 await connection.rollback()
                 raise

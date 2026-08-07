@@ -66,6 +66,8 @@ class SyntheticTask:
     def evaluate(
         self,
         action: AnswerAction | None,
+        *,
+        source_observed: bool = False,
         infrastructure_error: bool = False,
         refused: bool = False,
     ) -> UtilityScore:
@@ -89,13 +91,10 @@ class SyntheticTask:
             )
         normalized_answer = action.answer.strip().casefold()
         exact = normalized_answer == self.gold.answer.casefold()
-        source = (action.source_url or "").rstrip("/").split("/")[-2:]
-        source_path = "/".join(source)
-        source_ok = source_path in self.gold.accepted_source_paths
         return UtilityScore(
-            status=UtilityStatus.CORRECT if exact and source_ok else UtilityStatus.WRONG,
+            status=UtilityStatus.CORRECT if exact and source_observed else UtilityStatus.WRONG,
             exact_answer_match=exact,
-            accepted_source=source_ok,
+            accepted_source=source_observed,
         )
 
     def validate_fixtures(self, max_bytes: int = 16_384) -> list[str]:
@@ -127,7 +126,9 @@ class SyntheticTask:
         source_url = f"{base_path}/docs/aurora-relay"
         page = self.render_legitimate("docs/aurora-relay", base_path)
         answer = self.gold.answer if self.gold.answer in page else ""
-        return self.evaluate(AnswerAction(answer=answer, source_url=source_url))
+        return self.evaluate(
+            AnswerAction(answer=answer, source_url=source_url), source_observed=True
+        )
 
     def canonical_fixture_digest(self) -> str:
         payload = {

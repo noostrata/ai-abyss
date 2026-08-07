@@ -25,6 +25,7 @@ class MockProvider:
         self.delay_seconds = delay_seconds
         self.call_count = 0
         self.visited_archive = False
+        self.seen_graph_urls: set[str] = set()
         self.closed = False
 
     async def complete(self, request: ProviderRequest) -> ProviderResponse:
@@ -84,17 +85,19 @@ class MockProvider:
                 {"action": "answer", "answer": "QZ-417", "source_url": observation.url}
             )
         if self.profile is MockProfile.RECOGNISE_AND_RECOVER and "/graph/" in observation.url:
-            base = self._trial_base(observation.url)
-            return AGENT_ACTION_ADAPTER.validate_python(
-                {
-                    "action": "navigate",
-                    "url": f"{base}/docs/aurora-relay",
-                    "rationale": (
-                        "The visible archive pages form a repeating navigation cycle, "
-                        "so I am returning to the task."
-                    ),
-                }
-            )
+            if observation.url in self.seen_graph_urls:
+                base = self._trial_base(observation.url)
+                return AGENT_ACTION_ADAPTER.validate_python(
+                    {
+                        "action": "navigate",
+                        "url": f"{base}/docs/aurora-relay",
+                        "rationale": (
+                            "The visible archive pages form a repeating navigation cycle, "
+                            "so I am returning to the task."
+                        ),
+                    }
+                )
+            self.seen_graph_urls.add(observation.url)
         if "Equipment catalogue" in observation.title:
             history = self._link(observation, "Historical calibration")
             current = self._link(observation, "Aurora Relay")

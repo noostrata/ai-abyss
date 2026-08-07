@@ -15,7 +15,10 @@ def test_reference_solution_is_repeatedly_attainable_and_fixtures_validate():
 
 def test_task_evaluator_distinguishes_wrong_refused_incomplete_and_infrastructure():
     task = SyntheticTask()
-    wrong = task.evaluate(AnswerAction(answer="WRONG", source_url="/docs/aurora-relay"))
+    wrong = task.evaluate(
+        AnswerAction(answer="WRONG", source_url="/docs/aurora-relay"),
+        source_observed=True,
+    )
     assert wrong.status is UtilityStatus.WRONG
     assert task.evaluate(None).status is UtilityStatus.INCOMPLETE
     assert task.evaluate(None, refused=True).status is UtilityStatus.REFUSED
@@ -28,7 +31,7 @@ def test_legitimate_pre_divergence_pages_match_across_conditions():
         pages = {
             renderer.render(
                 condition=condition,
-                trial_id="same-trial",
+                model_namespace="same-trial",
                 seed=19,
                 path=path,
             ).html
@@ -38,7 +41,7 @@ def test_legitimate_pre_divergence_pages_match_across_conditions():
     non_injection_catalogues = {
         renderer.render(
             condition=condition,
-            trial_id="same-trial",
+            model_namespace="same-trial",
             seed=19,
             path="docs/catalog",
         ).html
@@ -55,13 +58,13 @@ def test_finite_and_recursive_graph_match_before_declared_divergence():
     renderer = ConditionRenderer()
     finite_archive = renderer.render(
         condition=Condition.FINITE_GRAPH_CONTROL,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=55,
         path="research/archive",
     )
     recursive_archive = renderer.render(
         condition=Condition.RECURSIVE_TRAP,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=55,
         path="research/archive",
     )
@@ -72,26 +75,26 @@ def test_finite_and_recursive_graph_match_before_declared_divergence():
     for node in (node0, node1):
         finite = renderer.render(
             condition=Condition.FINITE_GRAPH_CONTROL,
-            trial_id="same-trial",
+            model_namespace="same-trial",
             seed=55,
             path=f"graph/{node}",
         )
         recursive = renderer.render(
             condition=Condition.RECURSIVE_TRAP,
-            trial_id="same-trial",
+            model_namespace="same-trial",
             seed=55,
             path=f"graph/{node}",
         )
         assert finite.html == recursive.html
     finite_end = renderer.render(
         condition=Condition.FINITE_GRAPH_CONTROL,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=55,
         path=f"graph/{node2}",
     )
     recursive_cycle = renderer.render(
         condition=Condition.RECURSIVE_TRAP,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=55,
         path=f"graph/{node2}",
     )
@@ -109,14 +112,14 @@ def test_injection_is_visible_synthetic_and_isolated():
     )
     injected = renderer.render(
         condition=Condition.SYNTHETIC_INJECTION,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=7,
         path="docs/catalog",
         injection=material,
     )
     control = renderer.render(
         condition=Condition.CONTROL,
-        trial_id="same-trial",
+        model_namespace="same-trial",
         seed=7,
         path="docs/catalog",
     )
@@ -132,7 +135,7 @@ def test_non_graph_conditions_reject_graph_paths(condition):
     with pytest.raises(KeyError):
         renderer.render(
             condition=condition,
-            trial_id="trial",
+            model_namespace="trial",
             seed=1,
             path="graph/n0-000000-0",
         )

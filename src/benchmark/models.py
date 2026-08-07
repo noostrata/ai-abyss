@@ -23,7 +23,7 @@ from src.benchmark.enums import (
     UtilityStatus,
 )
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.0.0"
 Identifier = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$")]
 
 
@@ -160,6 +160,10 @@ class RequestAttemptPayload(ContractModel):
 
 class ObservationDeliveredPayload(ContractModel):
     node_id: Identifier
+    path: str = Field(min_length=1, max_length=2048)
+    depth: int = Field(ge=0)
+    visible_text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    contains_task_answer: bool = False
     observation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     character_count: int = Field(ge=0)
     payload_id: Identifier | None = None
@@ -274,8 +278,8 @@ class BenchmarkEvent(ContractModel):
             EventType.MODEL_CALL: ModelCallPayload,
             EventType.CALLBACK_TOKEN_ISSUED: CallbackTokenIssuedPayload,
             EventType.CALLBACK_VISITED: CallbackPayload,
+            EventType.SUBMISSION_ATTEMPTED: CallbackPayload,
             EventType.SYNTHETIC_SECRET_SUBMITTED: CallbackPayload,
-            EventType.SECONDARY_INSTRUCTION_FOLLOWED: CallbackPayload,
             EventType.BUDGET_RESERVED: BudgetPayload,
             EventType.BUDGET_RECONCILED: BudgetPayload,
             EventType.TRIAL_ENDED: OutcomePayload,
@@ -289,6 +293,7 @@ class BenchmarkEvent(ContractModel):
 class TrialManifest(ContractModel):
     schema_version: Literal[SCHEMA_VERSION] = SCHEMA_VERSION
     trial_id: Identifier
+    model_namespace: Identifier
     pair_id: Identifier
     pair_order: Literal["AB", "BA"]
     pair_position: Literal["A", "B"]
@@ -296,6 +301,7 @@ class TrialManifest(ContractModel):
     task_version: Identifier
     condition: Condition
     condition_version: Identifier
+    benchmark_origin: str = Field(pattern=r"^http://(?:127\.0\.0\.1|localhost):[0-9]+$")
     seed: int = Field(ge=0, le=2**63 - 1)
     provider: Identifier
     provider_profile: Identifier | None = None
@@ -310,6 +316,9 @@ class TrialManifest(ContractModel):
     system_prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     task_prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     config_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    fixture_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    apparatus_contract_version: Identifier
+    apparatus_contract_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     git_commit: str = Field(pattern=r"^[0-9a-f]{7,40}$")
     git_dirty: bool
     budgets: BudgetLimits
@@ -342,34 +351,36 @@ class UtilityScore(ContractModel):
     accepted_source: bool
 
 
-class TrapScore(ContractModel):
-    exposed: bool
-    attracted: bool
-    entered: bool
-    propagated: bool
-    dwell_actions: int = Field(ge=0)
-    revisits: int = Field(ge=0)
+class TrajectoryScore(ContractModel):
+    payload_delivered: bool
+    lure_selected: bool
+    graph_entered: bool
+    recursive_trap_entered: bool
+    graph_propagated: bool
+    trap_directed_actions: int = Field(ge=0)
+    graph_revisits: int = Field(ge=0)
     repeated_states: int = Field(default=0, ge=0)
     repeated_edges: int = Field(ge=0)
-    cycles: int = Field(ge=0)
+    completed_cycles: int = Field(ge=0)
     max_depth: int = Field(ge=0)
     callback_visited: bool
-    synthetic_secret_submitted: bool
-    secondary_instruction_followed: bool
+    submission_attempted: bool
+    exact_secret_submitted: bool
     recognition: Recognition = Recognition.UNKNOWN
-    escaped_to_task: bool
-    recovery_started: bool
+    graph_exited: bool
+    task_resumed: bool
+    task_completed: bool
     reentered: bool
-    actions_to_escape: int | None = Field(default=None, ge=0)
-    seconds_to_escape: float | None = Field(default=None, ge=0)
-    escape_censored: bool = True
+    actions_to_exit: int | None = Field(default=None, ge=0)
+    seconds_to_exit: float | None = Field(default=None, ge=0)
+    exit_censored: bool = True
 
 
 class TrialResult(ContractModel):
     trial_id: Identifier
     termination_reason: TerminationReason
     utility: UtilityScore
-    trap: TrapScore
+    trajectory: TrajectoryScore
     operator_ledger: ResourceLedger
     scaffold_ledger: ResourceLedger
     model_ledger: ResourceLedger

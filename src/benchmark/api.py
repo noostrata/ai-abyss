@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from src.benchmark.conditions import ConditionRenderer, InjectionMaterial
 from src.benchmark.enums import Condition, EventType
 from src.benchmark.event_sink import InvalidEventToken, TrialEventSink
-from src.benchmark.models import BenchmarkEvent, PageServedPayload
+from src.benchmark.models import BenchmarkEvent, PageServedPayload, TrialManifest
 from src.benchmark.registry import (
     EndedTrial,
     InactiveTrial,
@@ -60,10 +60,12 @@ def services_from(request: Request) -> BenchmarkServices:
     return services
 
 
-async def validate_benchmark_request(request: Request, trial_id: str) -> JSONResponse | None:
+async def resolve_benchmark_request(
+    request: Request, model_namespace: str
+) -> TrialManifest | JSONResponse:
     services = services_from(request)
     try:
-        await services.registry.get(trial_id, active_only=True)
+        return await services.registry.resolve_model_namespace(model_namespace, active_only=True)
     except InvalidTrialID:
         return JSONResponse({"error": "malformed_trial_id"}, status_code=400)
     except UnknownTrial:
@@ -72,14 +74,14 @@ async def validate_benchmark_request(request: Request, trial_id: str) -> JSONRes
         return JSONResponse({"error": "ended_trial"}, status_code=410)
     except InactiveTrial:
         return JSONResponse({"error": "inactive_trial"}, status_code=409)
-    return None
 
 
-@router.post("/benchmark/{trial_id}/event/{token}")
-async def synthetic_event_sink(trial_id: str, token: str, request: Request):
-    validation_error = await validate_benchmark_request(request, trial_id)
-    if validation_error is not None:
-        return validation_error
+@router.post("/benchmark/{model_namespace}/event/{token}")
+async def synthetic_event_sink(model_namespace: str, token: str, request: Request):
+    resolved = await resolve_benchmark_request(request, model_namespace)
+    if isinstance(resolved, JSONResponse):
+        return resolved
+    manifest = resolved
     content_length = request.headers.get("content-length")
     if content_length:
         try:
@@ -99,36 +101,38 @@ async def synthetic_event_sink(trial_id: str, token: str, request: Request):
         return JSONResponse({"error": "invalid_submission"}, status_code=422)
     services = services_from(request)
     try:
-        consumed = await services.event_sink.consume(token, trial_id, submission.secret)
+        await services.event_sink.consume(token, manifest.trial_id, submission.secret)
     except InvalidEventToken:
         return JSONResponse({"error": "invalid_event_token"}, status_code=403)
-    events = await services.event_sink.events_for_consumption(consumed)
-    await services.database.record_callback_events(events)
     return JSONResponse({"accepted": True, "synthetic": True})
 
 
-@router.get("/benchmark/{trial_id}/{page_path:path}")
-async def benchmark_page(trial_id: str, page_path: str, request: Request):
-    validation_error = await validate_benchmark_request(request, trial_id)
-    if validation_error is not None:
-        return validation_error
+@router.get("/benchmark/{model_namespace}/{page_path:path}")
+async def benchmark_page(model_namespace: str, page_path: str, request: Request):
+    resolved = await resolve_benchmark_request(request, model_namespace)
+    if isinstance(resolved, JSONResponse):
+        return resolved
+    manifest = resolved
     services = services_from(request)
-    manifest = await services.registry.get(trial_id, active_only=True)
     injection: InjectionMaterial | None = None
     if manifest.condition is Condition.SYNTHETIC_INJECTION and page_path.strip("/") == "docs/catalog":
-        synthetic_secret = services.trial_secrets.get(trial_id)
+        existing = services.pending_injections.get(manifest.trial_id, {})
+        injection = next(iter(existing.values()), None)
+        synthetic_secret = services.trial_secrets.get(manifest.trial_id)
         if synthetic_secret is None:
             return JSONResponse({"error": "trial_runtime_unavailable"}, status_code=409)
-        injection, _token_event = await services.event_sink.issue_injection(
-            trial_id,
-            manifest.condition,
-            synthetic_secret,
-        )
-        services.add_injection(trial_id, injection)
+        if injection is None:
+            injection, _token_event = await services.event_sink.issue_injection(
+                manifest.trial_id,
+                model_namespace,
+                manifest.condition,
+                synthetic_secret,
+            )
+            services.add_injection(manifest.trial_id, injection)
     try:
         page = services.renderer.render(
             condition=manifest.condition,
-            trial_id=trial_id,
+            model_namespace=model_namespace,
             seed=manifest.seed,
             path=page_path,
             injection=injection,
@@ -137,7 +141,7 @@ async def benchmark_page(trial_id: str, page_path: str, request: Request):
         return JSONResponse({"error": "unknown_page"}, status_code=404)
     event = BenchmarkEvent(
         event_id=f"evt-{secrets.token_hex(12)}",
-        trial_id=trial_id,
+        trial_id=manifest.trial_id,
         event_type=EventType.PAGE_SERVED,
         payload=PageServedPayload(
             node_id=page.node_id,

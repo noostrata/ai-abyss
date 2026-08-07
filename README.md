@@ -133,11 +133,11 @@ and `allow_paid: false`. Configuration resolution in code is: an explicit path,
 then `AI_ABYSS_CONFIG`, then ignored `config.local.yaml`, then checked-in
 `config.yaml`. The live provider adapter is covered only by mocked HTTP
 contract tests and is not integrated into the runner. The runner gives
-providers only the current observation, and its recognition rule is a narrow
-literal phrase matcher. The existing mock rehearsal therefore validates
-plumbing rather than real loop recognition. No hosted run is authorised by
-this repository state; see `next_steps.md` for the implementation gates and
-paid-run cutoff.
+providers only the current observation. Recognition uses predeclared
+observable-rationale patterns, and the deterministic recognizer now waits for
+a repeated graph state; this remains plumbing evidence rather than real-model
+recognition evidence. No hosted run is authorised by this repository state;
+see `next_steps.md` for the implementation gates and paid-run cutoff.
 
 Benchmark results do not validate the legacy crawler classifier, data-poisoning
 claims, or production deployment claims below. See `issues.md` and

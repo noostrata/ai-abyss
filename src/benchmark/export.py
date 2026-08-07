@@ -32,7 +32,7 @@ def export_trial(
     trial_dir.mkdir(parents=True, exist_ok=True)
     artifact_events = [_artifact_event(event) for event in events]
     events_text = "".join(canonical_json(event) + "\n" for event in artifact_events)
-    result = score_trial(manifest.trial_id, manifest.termination_reason, events)
+    result = score_trial(manifest, events)
     bundle = ResultBundle(
         manifest=manifest,
         result=result,
@@ -93,7 +93,7 @@ def replay_trial(trial_dir: Path) -> ResultBundle:
     manifest = TrialManifest.model_validate_json((trial_dir / "manifest.json").read_text())
     events_text = (trial_dir / "events.jsonl").read_text()
     events = [BenchmarkEvent.model_validate_json(line) for line in events_text.splitlines() if line]
-    result = score_trial(manifest.trial_id, manifest.termination_reason, events)
+    result = score_trial(manifest, events)
     return ResultBundle(
         manifest=manifest,
         result=result,

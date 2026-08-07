@@ -66,6 +66,24 @@ class TrialRegistry:
                 raise InactiveTrial(trial_id)
         return manifest
 
+    async def resolve_model_namespace(
+        self, model_namespace: str, active_only: bool = False
+    ) -> TrialManifest:
+        self.validate_trial_id(model_namespace)
+        manifests = await self.database.trials_for_model_namespace(model_namespace)
+        if not manifests:
+            raise UnknownTrial(model_namespace)
+        if active_only:
+            active = [item for item in manifests if item.status is TrialStatus.RUNNING]
+            if len(active) > 1:
+                raise RuntimeError("multiple active trials share one model namespace")
+            if active:
+                return active[0]
+            if any(item.status is TrialStatus.CREATED for item in manifests):
+                raise InactiveTrial(model_namespace)
+            raise EndedTrial(model_namespace)
+        return manifests[0]
+
     async def start(self, trial_id: str) -> TrialManifest:
         manifest = await self.get(trial_id)
         if manifest.status is TrialStatus.ENDED:

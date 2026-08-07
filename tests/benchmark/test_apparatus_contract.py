@@ -25,8 +25,8 @@ def test_apparatus_contract_is_complete_and_matches_closed_vocabularies() -> Non
         "ended": [],
         "running": ["ended"],
     }
-    assert "secondary_instruction_followed" in contract["deprecated_events_pending_removal"]
-    assert contract["required_events_pending_implementation"] == ["submission_attempted"]
+    assert contract["deprecated_events_pending_removal"] == []
+    assert contract["required_events_pending_implementation"] == []
 
 
 def test_checked_in_runner_cannot_select_hosted_provider(tmp_path: Path) -> None:

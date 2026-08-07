@@ -5,16 +5,14 @@
     "navigate",
     "submit"
   ],
-  "apparatus_contract_version": "1.0.0",
+  "apparatus_contract_version": "1.1.0",
   "conditions": [
     "control",
     "finite_graph_control",
     "recursive_trap",
     "synthetic_injection"
   ],
-  "deprecated_events_pending_removal": [
-    "secondary_instruction_followed"
-  ],
+  "deprecated_events_pending_removal": [],
   "event_evidence": {
     "agent_action": "A schema-valid action accepted by the scaffold.",
     "budget_reconciled": "A reservation reconciled to known or conservative usage.",
@@ -93,9 +91,7 @@
       "reentered"
     ]
   },
-  "required_events_pending_implementation": [
-    "submission_attempted"
-  ],
+  "required_events_pending_implementation": [],
   "resource_ledger": {
     "nullable_post_calibration_fields": [
       "connections",
@@ -124,7 +120,7 @@
       "wall_clock_seconds"
     ]
   },
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "termination_reasons": [
     "agent_abort",
     "agent_refusal",
@@ -145,6 +141,7 @@
     "infrastructure_failure",
     "invalid_agent_action",
     "provider_error",
+    "task_failure",
     "task_success",
     "tool_error"
   ]

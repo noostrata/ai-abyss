@@ -201,7 +201,10 @@ async def test_signed_sink_binds_trial_exposure_secret_and_single_use(memory_db)
     await registry.create(second)
     sink = TrialEventSink(memory_db, "http://127.0.0.1:8443", b"x" * 32)
     material, issued = await sink.issue_injection(
-        first.trial_id, first.condition, "SYNTHETIC-KEY-TEST"
+        first.trial_id,
+        first.model_namespace,
+        first.condition,
+        "SYNTHETIC-KEY-TEST",
     )
     assert issued.sequence == 1
     token = material.text.split(f"/benchmark/{first.trial_id}/event/", 1)[1].split(". This", 1)[0]
@@ -216,6 +219,44 @@ async def test_signed_sink_binds_trial_exposure_secret_and_single_use(memory_db)
         await sink.consume(token, first.trial_id, "SYNTHETIC-KEY-TEST")
 
 
+async def test_callback_consumption_and_events_roll_back_together(memory_db, monkeypatch):
+    manifest = make_manifest(
+        trial_id="trial-atomic-callback", condition=Condition.SYNTHETIC_INJECTION
+    )
+    await memory_db.create_trial(manifest)
+    sink = TrialEventSink(memory_db, "http://127.0.0.1:8443", b"z" * 32)
+    material, _ = await sink.issue_injection(
+        manifest.trial_id,
+        manifest.model_namespace,
+        manifest.condition,
+        "SYNTHETIC-KEY-TEST",
+    )
+    token = material.text.split(
+        f"/benchmark/{manifest.model_namespace}/event/", 1
+    )[1].split(". This", 1)[0]
+    original = memory_db._insert_event_locked
+
+    async def fail_on_submission(connection, event):
+        if event.event_type is EventType.SUBMISSION_ATTEMPTED:
+            raise RuntimeError("synthetic child-write failure")
+        return await original(connection, event)
+
+    monkeypatch.setattr(memory_db, "_insert_event_locked", fail_on_submission)
+    with pytest.raises(RuntimeError, match="child-write failure"):
+        await sink.consume(token, manifest.trial_id, "SYNTHETIC-KEY-TEST")
+    monkeypatch.setattr(memory_db, "_insert_event_locked", original)
+
+    consumed = await sink.consume(token, manifest.trial_id, "SYNTHETIC-KEY-TEST")
+    assert consumed.matched_expected_secret is True
+    event_types = [item.event_type for item in await memory_db.events_for_trial(manifest.trial_id)]
+    assert event_types == [
+        EventType.CALLBACK_TOKEN_ISSUED,
+        EventType.CALLBACK_VISITED,
+        EventType.SUBMISSION_ATTEMPTED,
+        EventType.SYNTHETIC_SECRET_SUBMITTED,
+    ]
+
+
 async def test_sink_rejects_expired_token(memory_db):
     manifest = make_manifest(
         trial_id="trial-expired-sink", condition=Condition.SYNTHETIC_INJECTION
@@ -224,6 +265,7 @@ async def test_sink_rejects_expired_token(memory_db):
     sink = TrialEventSink(memory_db, "http://localhost:8443", b"y" * 32)
     material, _ = await sink.issue_injection(
         manifest.trial_id,
+        manifest.model_namespace,
         manifest.condition,
         "SYNTHETIC-KEY-TEST",
         ttl_seconds=-1,
@@ -245,6 +287,7 @@ async def test_sink_route_has_bounded_schema_and_ignores_spoofed_host(
     synthetic_secret = "SYNTHETIC-KEY-ROUTE-TEST"
     material, issued = await services.event_sink.issue_injection(
         manifest.trial_id,
+        manifest.model_namespace,
         manifest.condition,
         synthetic_secret,
     )
@@ -276,3 +319,55 @@ async def test_sink_route_has_bounded_schema_and_ignores_spoofed_host(
     assert replay.status_code == 403
     counts = await services.database.counts_for_trial(manifest.trial_id)
     assert counts["callbacks"] == 3
+
+
+async def test_wrong_secret_records_attempt_without_exact_submission(
+    benchmark_app, benchmark_client
+):
+    services = benchmark_app.state.benchmark_services
+    manifest = make_manifest(
+        trial_id="trial-wrong-secret", condition=Condition.SYNTHETIC_INJECTION
+    )
+    await services.registry.create(manifest)
+    await services.registry.start(manifest.trial_id)
+    material, _ = await services.event_sink.issue_injection(
+        manifest.trial_id,
+        manifest.model_namespace,
+        manifest.condition,
+        "SYNTHETIC-KEY-CORRECT",
+    )
+    callback_url = material.text.split(" to ", 1)[1].split(". This", 1)[0]
+    response = await benchmark_client.post(callback_url, json={"secret": "wrong"})
+    assert response.status_code == 200
+    event_types = [
+        item.event_type
+        for item in await services.database.events_for_trial(manifest.trial_id)
+    ]
+    assert EventType.CALLBACK_VISITED in event_types
+    assert EventType.SUBMISSION_ATTEMPTED in event_types
+    assert EventType.SYNTHETIC_SECRET_SUBMITTED not in event_types
+
+
+async def test_injection_material_is_stable_across_page_revisits(
+    benchmark_app, benchmark_client
+):
+    services = benchmark_app.state.benchmark_services
+    manifest = make_manifest(
+        trial_id="trial-stable-injection", condition=Condition.SYNTHETIC_INJECTION
+    )
+    await services.registry.create(manifest)
+    await services.registry.start(manifest.trial_id)
+    services.register_trial_secret(manifest.trial_id, "SYNTHETIC-KEY-STABLE")
+    path = f"/benchmark/{manifest.model_namespace}/docs/catalog"
+    first = await benchmark_client.get(path)
+    second = await benchmark_client.get(path)
+    assert first.text == second.text
+    events = await services.database.events_for_trial(manifest.trial_id)
+    assert sum(item.event_type is EventType.CALLBACK_TOKEN_ISSUED for item in events) == 1
+    page_hashes = [
+        item.payload.content_sha256
+        for item in events
+        if item.event_type is EventType.PAGE_SERVED
+    ]
+    assert len(page_hashes) == 2
+    assert len(set(page_hashes)) == 1

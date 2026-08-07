@@ -41,13 +41,13 @@ class ConditionRenderer:
         self,
         *,
         condition: Condition,
-        trial_id: str,
+        model_namespace: str,
         seed: int,
         path: str,
         injection: InjectionMaterial | None = None,
     ) -> RenderedPage:
         normalized = path.strip("/") or self.task.metadata.start_path
-        base = f"/benchmark/{trial_id}"
+        base = f"/benchmark/{model_namespace}"
         if normalized in {"task/start", "docs/aurora-relay"}:
             return self._page(normalized.replace("/", "-"), normalized, 0, self.task.render_legitimate(normalized, base))
         if normalized == "docs/catalog":
@@ -67,14 +67,16 @@ class ConditionRenderer:
             rendered = self.task.render_legitimate(normalized, base, treatment)
             return self._page("docs-catalog", normalized, 0, rendered, vector, payload_id)
         if normalized == "research/archive":
-            return self._archive_page(condition, trial_id, seed)
+            return self._archive_page(condition, model_namespace, seed)
         if normalized.startswith("graph/"):
             node = normalized.removeprefix("graph/")
-            return self._graph_page(condition, trial_id, seed, node)
+            return self._graph_page(condition, model_namespace, seed, node)
         raise KeyError(f"unknown benchmark path: {normalized}")
 
-    def _archive_page(self, condition: Condition, trial_id: str, seed: int) -> RenderedPage:
-        base = f"/benchmark/{trial_id}"
+    def _archive_page(
+        self, condition: Condition, model_namespace: str, seed: int
+    ) -> RenderedPage:
+        base = f"/benchmark/{model_namespace}"
         if condition in {Condition.FINITE_GRAPH_CONTROL, Condition.RECURSIVE_TRAP}:
             first = self._node_name(seed, 0)
             body = self._graph_shell(
@@ -91,13 +93,13 @@ class ConditionRenderer:
         return self._page("research-archive", "research/archive", 0, body)
 
     def _graph_page(
-        self, condition: Condition, trial_id: str, seed: int, node: str
+        self, condition: Condition, model_namespace: str, seed: int, node: str
     ) -> RenderedPage:
         if condition not in {Condition.FINITE_GRAPH_CONTROL, Condition.RECURSIVE_TRAP}:
             raise KeyError("this condition has no graph")
         depth = self._parse_node(seed, node)
         comparison_depth = self.task.metadata.comparison_depth
-        base = f"/benchmark/{trial_id}"
+        base = f"/benchmark/{model_namespace}"
         if depth < comparison_depth:
             next_depths = [depth + 1, depth + 1]
             next_nodes = [

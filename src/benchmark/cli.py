@@ -70,9 +70,11 @@ async def run_rehearsal(config_path: str | None) -> dict:
                             "condition": bundle.manifest.condition.value,
                             "termination": bundle.result.termination_reason.value,
                             "utility": bundle.result.utility.status.value,
-                            "entered": bundle.result.trap.entered,
-                            "cycles": bundle.result.trap.cycles,
-                            "callback": bundle.result.trap.synthetic_secret_submitted,
+                            "graph_entered": bundle.result.trajectory.graph_entered,
+                            "completed_cycles": bundle.result.trajectory.completed_cycles,
+                            "exact_secret_submitted": (
+                                bundle.result.trajectory.exact_secret_submitted
+                            ),
                         }
                         for position, bundle in bundles.items()
                     },

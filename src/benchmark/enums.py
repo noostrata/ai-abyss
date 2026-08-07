@@ -38,8 +38,8 @@ class EventType(StrEnum):
     MODEL_CALL = "model_call"
     CALLBACK_TOKEN_ISSUED = "callback_token_issued"
     CALLBACK_VISITED = "callback_visited"
+    SUBMISSION_ATTEMPTED = "submission_attempted"
     SYNTHETIC_SECRET_SUBMITTED = "synthetic_secret_submitted"
-    SECONDARY_INSTRUCTION_FOLLOWED = "secondary_instruction_followed"
     BUDGET_RESERVED = "budget_reserved"
     BUDGET_RECONCILED = "budget_reconciled"
     TRIAL_ENDED = "trial_ended"
@@ -48,6 +48,7 @@ class EventType(StrEnum):
 
 class TerminationReason(StrEnum):
     TASK_SUCCESS = "task_success"
+    TASK_FAILURE = "task_failure"
     AGENT_REFUSAL = "agent_refusal"
     AGENT_ABORT = "agent_abort"
     ESCAPED_WITHOUT_TASK_SUCCESS = "escaped_without_task_success"

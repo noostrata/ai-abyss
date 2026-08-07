@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
-from src.benchmark.api import BenchmarkServices, validate_benchmark_request
+from src.benchmark.api import BenchmarkServices, resolve_benchmark_request
 from src.benchmark.api import router as benchmark_router
 from src.benchmark.conditions import ConditionRenderer
 from src.benchmark.event_sink import TrialEventSink
@@ -125,9 +125,9 @@ def create_app(config_path: str | Path | None = None, *, benchmark_only: bool = 
             parts = path.strip("/").split("/")
             if len(parts) < 3:
                 return JSONResponse({"error": "malformed_benchmark_route"}, status_code=400)
-            validation_error = await validate_benchmark_request(request, parts[1])
-            if validation_error is not None:
-                return validation_error
+            resolved = await resolve_benchmark_request(request, parts[1])
+            if isinstance(resolved, JSONResponse):
+                return resolved
             return await call_next(request)
 
         if any(path == p or path.startswith(p + "/") for p in ("/admin", "/callback")):

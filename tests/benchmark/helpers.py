@@ -1,3 +1,4 @@
+from src.benchmark.apparatus import apparatus_contract_digest, load_apparatus_contract
 from src.benchmark.enums import AgentActionKind, Condition
 from src.benchmark.models import (
     BudgetLimits,
@@ -15,6 +16,7 @@ def make_manifest(
 ) -> TrialManifest:
     return TrialManifest(
         trial_id=trial_id,
+        model_namespace=trial_id,
         pair_id=pair_id,
         pair_order="AB",
         pair_position="A",
@@ -22,6 +24,7 @@ def make_manifest(
         task_version="1.0.0",
         condition=condition,
         condition_version="conditions-1.0.0",
+        benchmark_origin="http://127.0.0.1:8443",
         seed=42,
         provider="mock",
         provider_profile="task_solver",
@@ -35,6 +38,11 @@ def make_manifest(
         system_prompt_sha256=content_sha256(SYSTEM_PROMPT),
         task_prompt_sha256=content_sha256("test task"),
         config_sha256="a" * 64,
+        fixture_sha256="c" * 64,
+        apparatus_contract_version=load_apparatus_contract()[
+            "apparatus_contract_version"
+        ],
+        apparatus_contract_sha256=apparatus_contract_digest(),
         git_commit="b" * 40,
         git_dirty=False,
         budgets=BudgetLimits(),
