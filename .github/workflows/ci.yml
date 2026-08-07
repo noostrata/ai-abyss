@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unpaid-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Verify dependency lock
+        run: uv lock --locked
+
+      - name: Install locked development environment
+        run: uv sync --locked --extra dev
+
+      - name: Run static checks
+        run: uv run ruff check src tests
+
+      - name: Run complete test suite
+        run: uv run pytest -q
+
+      - name: Run deterministic mock rehearsal
+        run: uv run ai-abyss-benchmark mock-rehearsal > rehearsal-output.json
+
+      - name: Replay every rehearsal trial
+        shell: bash
+        run: |
+          mapfile -d '' results < <(find artifacts/benchmark -name result.json -print0)
+          test "${#results[@]}" -eq 36
+          for result in "${results[@]}"; do
+            uv run ai-abyss-benchmark replay "$(dirname "$result")" >/dev/null
+          done
+
+      - name: Retain unpaid rehearsal summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: unpaid-rehearsal-summary
+          path: |
+            rehearsal-output.json
+            artifacts/benchmark/rehearsal_summary.json
+          if-no-files-found: error
+          retention-days: 14
