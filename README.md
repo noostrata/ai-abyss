@@ -511,7 +511,10 @@ real-user scope.
 
 ### 🔒 Security
 
-- **Default credentials** — `config.yaml` ships with `api_key: "CHANGE_ME"`, `domain: "yourdomain.com"`, and `c2_callback_domain: "https://your-beacon.example.com"`. All three **must** be changed before any real deployment.
+- **Placeholders** — `config.yaml` ships with `api_key: "CHANGE_ME"`,
+  `domain: "yourdomain.com"`, and a placeholder callback domain. They make the
+  legacy configuration unsuitable even for accidental public exposure;
+  changing them is necessary but not sufficient for deployment.
 - **Admin API authentication** — Single API key via query parameter or header. Adequate for local testing, not for public-facing deployments without TLS, IP allowlisting, or reverse proxy auth.
 - **No TLS built-in** — Plain HTTP. Use a reverse proxy or CDN for TLS termination.
 - **No rate limiting** — Admin endpoints have no brute-force protection on the API key.

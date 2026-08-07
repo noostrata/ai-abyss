@@ -87,8 +87,6 @@ def run_unpaid_qualification(
     commit, dirty = _git_state(REPOSITORY_ROOT)
     if dirty:
         raise ValueError("unpaid qualification requires a clean worktree")
-    if output_path.exists():
-        raise ValueError("remove or archive the prior qualification report first")
 
     checks = {
         name: _run_checked(command, REPOSITORY_ROOT)

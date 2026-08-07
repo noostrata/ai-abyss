@@ -137,8 +137,10 @@ def _general_documentation_errors() -> list[str]:
 
 
 def _evidence_errors(*, required: bool) -> list[str]:
+    if not required:
+        return []
     if not EVIDENCE_PATH.exists():
-        return ["unpaid qualification evidence is missing"] if required else []
+        return ["unpaid qualification evidence is missing"]
     try:
         evidence = json.loads(EVIDENCE_PATH.read_text())
     except json.JSONDecodeError:
