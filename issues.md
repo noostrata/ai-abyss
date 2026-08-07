@@ -23,9 +23,9 @@ Status vocabulary:
 | ID | Severity | Complexity | Gate | Status | Issue and present evidence |
 |---|---|:---:|---|---|---|
 | BEN-001 | Critical | M | 1 | mock-observed | Task success is derived from an exact active-origin, active-namespace source delivered before the answer and marked as containing the task answer; hostile and unvisited sources have negative tests. |
-| BEN-002 | Critical | L | 2 | open | The runner is mock-only and hardcodes `MockProvider`; the isolated OpenRouter adapter is not a runnable benchmark path (`src/benchmark/runner.py`). |
-| BEN-003 | Critical | L | 2 | open | Provider calls receive only the current observation, while deterministic mocks retain privileged Python state; real loop recognition would be memoryless. |
-| BEN-004 | Critical | M | 2 | open | The OpenRouter payload does not send the action schema, pin a provider route, prohibit fallback, or retain the actual returned route and model identity. |
+| BEN-002 | Critical | L | 2 | mock-observed | The runner injects a predeclared local provider selection. Deterministic mock and local fake OpenRouter modes traverse the same lifecycle; hosted construction remains unavailable from the runner. |
+| BEN-003 | Critical | L | 2 | mock-observed | Every call receives a typed, bounded, versioned observation/action trajectory with an explicit truncation count. The deterministic policy is pure and retains no privileged behavioral state. |
+| BEN-004 | Critical | M | 2 | mock-observed | The OpenRouter-compatible request sends the exact strict action schema, one exact model and route, disables fallback, requires parameter support, and validates/records returned model, route, fingerprint, tier, and router metadata. |
 | BEN-005 | Critical | S–M | 3 | open | Action capacity is consumed after the provider call, permitting one additional billable request at a tight action boundary. |
 | BEN-006 | Critical | M–L | 3 | open | Timeout, malformed-response, and provider-error paths release reservations even when billing may be unknown. |
 | BEN-007 | High | M | 3 | open | Reasoning/completion accounting can double-count output; missing provider cost is estimated internally but recorded as zero in reconciliation evidence. |

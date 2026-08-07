@@ -25,6 +25,7 @@ confidentiality, deployment, or legal claims.
 |---|---|
 | Benchmark contracts, routes, fixtures, mocks, scoring, export | Implemented and test-covered |
 | Deterministic local rehearsal | Mock-observed |
+| Local fake OpenRouter-compatible runner | Mock-observed |
 | Hosted-provider runner | Not implemented |
 | Paid-call safety under timeout or unknown billing | Not implemented |
 | Real-model behavior | Not observed |

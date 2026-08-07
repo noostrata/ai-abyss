@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import secrets
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -49,8 +50,20 @@ from src.benchmark.models import (
     canonical_json,
     content_sha256,
 )
-from src.benchmark.providers.base import ProviderError, ProviderMalformedResponse, ProviderRequest
+from src.benchmark.providers.base import (
+    MAX_TRAJECTORY_TURNS,
+    Provider,
+    ProviderError,
+    ProviderFactory,
+    ProviderIdentity,
+    ProviderIdentityMismatch,
+    ProviderMalformedResponse,
+    ProviderRequest,
+    ProviderTurn,
+)
+from src.benchmark.providers.fake_openrouter import FakeScenario, create_fake_openrouter_app
 from src.benchmark.providers.mock import MockProvider
+from src.benchmark.providers.openrouter import LiveProviderControls, OpenRouterProvider
 from src.benchmark.scaffold import (
     ACTION_SCHEMA_VERSION,
     OBSERVATION_VERSION,
@@ -88,8 +101,22 @@ class PairSpec:
             raise ValueError("finite graph control is only matched to recursive trap")
 
 
+@dataclass(frozen=True)
+class RunnerProviderSelection:
+    """A local-only provider constructor and its predeclared identity."""
+
+    identity_for: Callable[[MockProfile], ProviderIdentity]
+    build: ProviderFactory
+
+
 class BenchmarkRunner:
-    def __init__(self, app: FastAPI, config: AppConfig, batch: BatchBudget | None = None) -> None:
+    def __init__(
+        self,
+        app: FastAPI,
+        config: AppConfig,
+        batch: BatchBudget | None = None,
+        provider_selection: RunnerProviderSelection | None = None,
+    ) -> None:
         if config.benchmark.execution_mode.value != "mock" or config.benchmark.allow_paid:
             raise ValueError("pre-paid runner accepts only mock mode with allow_paid=false")
         self.app = app
@@ -102,6 +129,11 @@ class BenchmarkRunner:
             reasoning_usd_per_million=0.0,
         )
         self.bounds = CallBounds()
+        self.provider_selection = provider_selection or mock_provider_selection()
+        for profile in MockProfile:
+            identity = self.provider_selection.identity_for(profile)
+            if identity.execution_boundary not in {"local_mock", "local_fake"}:
+                raise ValueError("pre-paid runner accepts only local provider selections")
 
     async def run_pair(self, spec: PairSpec) -> dict[str, ResultBundle]:
         positions = ["A", "B"] if spec.order == "AB" else ["B", "A"]
@@ -143,7 +175,9 @@ class BenchmarkRunner:
                 governor,
             ),
         )
-        provider = MockProvider(profile)
+        provider = self.provider_selection.build(manifest, profile)
+        self._validate_provider(manifest, provider)
+        history: list[ProviderTurn] = []
         barrier = RuntimeSocketBarrier(self._allowed_socket_origins())
         termination = TerminationReason.INFRASTRUCTURE_FAILURE
         answer_status = UtilityStatus.INCOMPLETE
@@ -156,12 +190,15 @@ class BenchmarkRunner:
                         f"{manifest.model_namespace}/task/start"
                     )
             await self._record_observation(manifest, observation, scaffold, governor)
+            history.append(ProviderTurn(observation=observation))
             while True:
                 governor.check_wall_clock()
+                bounded_history = history[-MAX_TRAJECTORY_TURNS:]
                 request = ProviderRequest(
                     system_prompt=SYSTEM_PROMPT,
                     task_prompt=services.renderer.task.metadata.prompt,
-                    observation=observation,
+                    trajectory=bounded_history,
+                    truncated_turns=max(0, len(history) - len(bounded_history)),
                     action_schema=AGENT_ACTION_ADAPTER.json_schema(),
                     max_output_tokens=self.bounds.max_output_tokens,
                     max_reasoning_tokens=self.bounds.max_reasoning_tokens,
@@ -201,6 +238,13 @@ class BenchmarkRunner:
                     await self._error_event(manifest.trial_id, "provider", "mocked_provider_error")
                     break
                 await governor.reconcile_call(reservation.reservation_id, response.usage)
+                if (
+                    response.actual_model_id != manifest.model_id
+                    or response.actual_provider_route != manifest.provider_route
+                ):
+                    raise ProviderIdentityMismatch(
+                        "provider response identity changed after adapter validation"
+                    )
                 actual_cost = response.usage.provider_reported_cost_usd or 0.0
                 await self._event(
                     manifest.trial_id,
@@ -237,7 +281,11 @@ class BenchmarkRunner:
                     ModelCallPayload(
                         call_id=f"{manifest.trial_id}-{response.request_id}",
                         provider=provider.name,
-                        model_id=provider.model_id,
+                        model_id=response.actual_model_id,
+                        provider_route=response.actual_provider_route,
+                        system_fingerprint=response.system_fingerprint,
+                        service_tier=response.service_tier,
+                        routing_metadata=response.routing_metadata,
                         prompt_sha256=content_sha256(canonical_json(request)),
                         response_sha256=content_sha256(response.raw_content),
                         usage=response.usage,
@@ -245,6 +293,9 @@ class BenchmarkRunner:
                     normalized="model_call",
                 )
                 governor.consume_action()
+                history[-1] = history[-1].model_copy(
+                    update={"action": response.action}
+                )
                 await self._event(
                     manifest.trial_id,
                     EventType.AGENT_ACTION,
@@ -305,6 +356,7 @@ class BenchmarkRunner:
                 await self._record_observation(
                     manifest, observation, scaffold, governor
                 )
+                history.append(ProviderTurn(observation=observation))
         except BudgetExceeded as error:
             termination = error.reason
         except TimeoutError:
@@ -429,6 +481,7 @@ class BenchmarkRunner:
         trial_id = f"trial-{secrets.token_hex(8)}"
         synthetic_secret = f"SYNTHETIC-KEY-{secrets.token_hex(8).upper()}"
         profile = spec.profile.value
+        identity = self.provider_selection.identity_for(spec.profile)
         task = self.app.state.benchmark_services.renderer.task
         return (
             TrialManifest(
@@ -443,10 +496,10 @@ class BenchmarkRunner:
                 condition_version=self.app.state.benchmark_services.renderer.version,
                 benchmark_origin=self.config.benchmark.local_base_url,
                 seed=spec.seed,
-                provider="mock",
+                provider=identity.name,
                 provider_profile=profile,
-                provider_route="mock-local-no-network",
-                model_id=f"mock/{profile}-v1",
+                provider_route=identity.provider_route,
+                model_id=identity.model_id,
                 scaffold_version=SCAFFOLD_VERSION,
                 prompt_version=SYSTEM_PROMPT_VERSION,
                 observation_version=OBSERVATION_VERSION,
@@ -531,6 +584,17 @@ class BenchmarkRunner:
         return result
 
     @staticmethod
+    def _validate_provider(manifest: TrialManifest, provider: Provider) -> None:
+        if provider.execution_boundary not in {"local_mock", "local_fake"}:
+            raise ValueError("hosted providers are not selectable before the paid gate")
+        if (
+            provider.name != manifest.provider
+            or provider.model_id != manifest.model_id
+            or provider.provider_route != manifest.provider_route
+        ):
+            raise ValueError("constructed provider does not match the trial manifest")
+
+    @staticmethod
     def _node_from_url(url: str) -> tuple[str, int]:
         parts = urlsplit(url)
         segments = parts.path.strip("/").split("/")
@@ -567,3 +631,62 @@ def _git_state() -> tuple[str, bool]:
         ).stdout.strip()
     )
     return commit, dirty
+
+
+def mock_provider_selection() -> RunnerProviderSelection:
+    return RunnerProviderSelection(
+        identity_for=lambda profile: ProviderIdentity(
+            name="mock",
+            model_id=f"mock/{profile.value}-v1",
+            provider_route="mock-local-no-network",
+            execution_boundary="local_mock",
+        ),
+        build=lambda manifest, profile: MockProvider(profile),
+    )
+
+
+def local_fake_provider_selection(
+    *,
+    scenario: FakeScenario = "valid",
+    delay_seconds: float = 0.1,
+) -> RunnerProviderSelection:
+    """Build the live-shaped adapter against an isolated in-process local server."""
+
+    model_id = "fake/exact-model-v1"
+    provider_route = "FakeLocal"
+
+    def identity_for(profile: MockProfile) -> ProviderIdentity:
+        return ProviderIdentity(
+            name="openrouter",
+            model_id=model_id,
+            provider_route=provider_route,
+            execution_boundary="local_fake",
+        )
+
+    def build(manifest: TrialManifest, profile: MockProfile) -> Provider:
+        fake_app = create_fake_openrouter_app(
+            profile,
+            model_id=model_id,
+            provider_route=provider_route,
+            scenario=scenario,
+            delay_seconds=delay_seconds,
+        )
+        endpoint = "http://127.0.0.1:8999/api/v1/chat/completions"
+        return OpenRouterProvider(
+            LiveProviderControls(
+                transport_mode="local_fake",
+                model_id=model_id,
+                provider_route=provider_route,
+                max_output_tokens=512,
+                max_reasoning_tokens=512,
+            ),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(
+                    app=fake_app,
+                    raise_app_exceptions=False,
+                )
+            ),
+            endpoint=endpoint,
+        )
+
+    return RunnerProviderSelection(identity_for=identity_for, build=build)

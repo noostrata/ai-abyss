@@ -69,6 +69,7 @@ async def test_normalized_child_failure_rolls_back_parent_event(memory_db):
             call_id="call-duplicate",
             provider="mock",
             model_id="mock/test",
+            provider_route="mock-local-no-network",
             prompt_sha256="a" * 64,
             response_sha256="b" * 64,
             usage=ProviderUsage(),

@@ -188,6 +188,10 @@ class ModelCallPayload(ContractModel):
     call_id: Identifier
     provider: Identifier
     model_id: str = Field(min_length=1, max_length=256)
+    provider_route: str = Field(min_length=1, max_length=256)
+    system_fingerprint: str | None = Field(default=None, max_length=256)
+    service_tier: str | None = Field(default=None, max_length=128)
+    routing_metadata: dict = Field(default_factory=dict)
     prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     response_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     usage: ProviderUsage
