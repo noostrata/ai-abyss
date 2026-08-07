@@ -9,6 +9,7 @@ from src.benchmark.protocol import (
     GENERATED_MATRIX_PATH,
     experimental_protocol_digest,
     generate_run_matrix,
+    generated_matrix_text,
     load_experimental_protocol,
 )
 from src.benchmark.recognition import blinded_recognition_items
@@ -24,6 +25,7 @@ def test_calibration_protocol_and_generated_matrix_are_exactly_synchronized():
         "protocol_sha256": experimental_protocol_digest(),
         "pairs": matrix,
     }
+    assert GENERATED_MATRIX_PATH.read_text() == generated_matrix_text(protocol)
     assert len(matrix) * 2 == protocol.spending.maximum_trials
     assert {item["order"] for item in matrix} == {"AB", "BA"}
     assert {item["contrast_id"] for item in matrix} == {"recursion", "injection"}

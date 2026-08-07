@@ -5,9 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets
+import socket
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Literal
 
 import httpx
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -33,6 +38,55 @@ FakeScenario = Literal[
     "wrong_model",
     "wrong_provider",
 ]
+
+
+@dataclass(frozen=True)
+class LoopbackFakeServer:
+    endpoint: str
+    app: FastAPI
+
+
+@asynccontextmanager
+async def serve_fake_openrouter(
+    app: FastAPI,
+) -> AsyncIterator[LoopbackFakeServer]:
+    """Serve the fake adapter on an ephemeral loopback TCP port."""
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(128)
+    listener.setblocking(False)
+    port = listener.getsockname()[1]
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            host="127.0.0.1",
+            port=port,
+            log_level="critical",
+            access_log=False,
+            lifespan="on",
+        )
+    )
+    task = asyncio.create_task(server.serve(sockets=[listener]))
+    try:
+        async with asyncio.timeout(5):
+            while not server.started:
+                if task.done():
+                    await task
+                    raise RuntimeError("fake provider stopped before startup")
+                await asyncio.sleep(0.01)
+        yield LoopbackFakeServer(
+            endpoint=f"http://127.0.0.1:{port}/api/v1/chat/completions",
+            app=app,
+        )
+    finally:
+        server.should_exit = True
+        try:
+            async with asyncio.timeout(5):
+                await task
+        finally:
+            listener.close()
 
 
 def create_fake_openrouter_app(

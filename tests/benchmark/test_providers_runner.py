@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -30,7 +31,10 @@ from src.benchmark.providers.base import (
     ProviderTimeout,
     ProviderTurn,
 )
-from src.benchmark.providers.fake_openrouter import create_fake_openrouter_app
+from src.benchmark.providers.fake_openrouter import (
+    create_fake_openrouter_app,
+    serve_fake_openrouter,
+)
 from src.benchmark.providers.mock import MockProvider
 from src.benchmark.providers.openrouter import LiveProviderControls, OpenRouterProvider
 from src.benchmark.runner import (
@@ -341,6 +345,27 @@ async def test_local_fake_openrouter_exercises_exact_http_contract_without_crede
     assert payload["provider"]["allow_fallbacks"] is False
     assert payload["response_format"]["json_schema"]["strict"] is True
     await provider.close()
+
+
+async def test_local_fake_openrouter_uses_actual_loopback_tcp_http():
+    fake_app = create_fake_openrouter_app(MockProfile.TASK_SOLVER)
+    destinations: list[str] = []
+    async with serve_fake_openrouter(fake_app) as server:
+        selection = local_fake_provider_selection(
+            endpoint=server.endpoint,
+            request_audit=destinations,
+        )
+        identity = selection.identity_for(MockProfile.TASK_SOLVER)
+        provider = selection.build(
+            SimpleNamespace(pair_position="A"), MockProfile.TASK_SOLVER
+        )
+        response = await provider.complete(_request())
+        await provider.close()
+    assert identity.execution_boundary == "local_fake"
+    assert response.actual_model_id == "fake/exact-model-v1"
+    assert len(fake_app.state.received_requests) == 1
+    assert len(destinations) == 1
+    assert destinations[0].startswith("http://127.0.0.1:")
 
 
 @pytest.mark.parametrize("scenario", ["malformed_json", "schema_invalid", "missing_usage"])

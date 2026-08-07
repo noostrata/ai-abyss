@@ -158,12 +158,28 @@ def generate_run_matrix(protocol: CalibrationProtocol | None = None) -> list[dic
     return matrix
 
 
-def write_generated_matrix(path: Path = GENERATED_MATRIX_PATH) -> Path:
-    matrix = {
-        "protocol_id": load_experimental_protocol().protocol_id,
+def generated_matrix_document(
+    protocol: CalibrationProtocol | None = None,
+) -> dict:
+    """Return the canonical checked-in matrix document without writing it."""
+
+    protocol = protocol or load_experimental_protocol()
+    return {
+        "protocol_id": protocol.protocol_id,
         "protocol_sha256": experimental_protocol_digest(),
-        "pairs": generate_run_matrix(),
+        "pairs": generate_run_matrix(protocol),
     }
+
+
+def generated_matrix_text(
+    protocol: CalibrationProtocol | None = None,
+) -> str:
+    return json.dumps(
+        generated_matrix_document(protocol), sort_keys=True, indent=2
+    ) + "\n"
+
+
+def write_generated_matrix(path: Path = GENERATED_MATRIX_PATH) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(matrix, sort_keys=True, indent=2) + "\n")
+    path.write_text(generated_matrix_text())
     return path

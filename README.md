@@ -7,31 +7,30 @@ This repository contains two separate research systems:
 
 The benchmark bypasses the inherited classifier and does not validate the
 legacy product's crawler attribution, poisoning, resource-exhaustion,
-confidentiality, deployment, or legal claims.
+confidentiality, deployment, or legal claims. The legacy descriptions below
+document intended prototype mechanisms, not demonstrated effects.
 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License: AGPL-3.0](https://img.shields.io/github/license/terrorswift/ai-abyss)
 ![Status: Research Prototype](https://img.shields.io/badge/status-research%20prototype-orange)
 ![nginx: 1.28.2+ optional](https://img.shields.io/badge/nginx-1.28.2%2B%20optional-lightgrey)
 
-> **Research status:** the benchmark is implemented and deterministically
-> mock-tested. It is not yet runnable with a hosted model, real-model-validated,
-> statistically validated, or production-ready. The inherited public honeypot
-> is not production-hardened and contains unresolved security, privacy,
-> attribution, measurement, and legal-claim problems. See `issues.md` and
-> `next_steps.md`.
+> **Research status:** the unpaid apparatus is implemented, test-covered, and
+> exercised with deterministic local policies and the exact provider adapter
+> over loopback TCP/HTTP. No hosted-model request has been made. There is no
+> real-model or causal-efficacy evidence, and neither system is approved for
+> production deployment. See [`issues.md`](issues.md) and
+> [`next_steps.md`](next_steps.md).
 
-| Capability | Current evidence |
-|---|---|
-| Benchmark contracts, routes, fixtures, mocks, scoring, export | Implemented and test-covered |
-| Deterministic local rehearsal | Mock-observed |
-| Local fake OpenRouter-compatible runner | Mock-observed |
-| Pre-call action/cost reservations and unknown-billing retention | Mock-observed |
-| Hosted-provider runner | Implemented behind an unissued, fail-closed authorization object |
-| Paid-call safety with a real provider | Not yet real-provider-validated |
-| Real-model behavior | Not observed |
-| Causal/statistical benchmark results | Not established |
-| Legacy public deployment | Unsupported |
+| Claim | Implemented | Test-covered | Local/mock-observed | Real-model-observed | Production-ready |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Typed apparatus, dynamic task, conditions, scoring, and replay | Yes | Yes | Yes | No | No |
+| Strict provider-shaped trajectory/action loop | Yes | Yes | Yes, over loopback TCP/HTTP | No | No |
+| Pre-call capacity and worst-case cost accounting | Yes | Yes | Yes | No | No |
+| Exact hosted-provider construction | Yes, gated | Yes, mocked | No hosted request | No | No |
+| Matched calibration protocol and analysis rules | Yes | Yes | Locally rehearsed | No | No |
+| Scientific susceptibility or efficacy claims | No | No | No | No | No |
+| Inherited public honeypot deployment | Legacy prototype only | Regression tests only | Not qualified | No | No |
 
 The inherited prototype was designed to classify crawlers and route requests
 into three mechanisms. These are intended behaviors, not established current
@@ -46,7 +45,8 @@ capabilities:
 The current classifier does not correctly parse and apply `robots.txt`, and
 caller-controlled identity signals remain spoofable. Do not rely on it to prove
 that only prior policy violators reach these mechanisms. The legacy defaults
-also do not provide production-safe feature isolation.
+also do not provide production-safe feature isolation, privacy guarantees, or
+safe public cost controls.
 
 ---
 
@@ -76,7 +76,7 @@ also do not provide production-safe feature isolation.
 
 ## Local Agent Benchmark
 
-The repository contains a separate, local-only apparatus for developing
+The repository contains a separate, loopback-only apparatus for developing
 measurements of how API-style web agents respond to recursive lures and
 synthetic prompt injection.
 It does not use crawler classification: each benchmark request is routed by a
@@ -93,32 +93,43 @@ The initial conditions are:
   event token tied to a fake secret.
 
 The fixed scaffold exposes only `navigate`, `submit`, `answer`, and `abort`.
-It runs against a benchmark-only FastAPI application: legacy, admin, and
-cross-trial paths are not part of that application's reachable surface.
-Exact-origin and per-trial path validation plus an in-process raw-socket policy
-restrict the current scaffold to the active local trial. This Python-level
-barrier is not an operating-system sandbox. Per-trial and batch governors
-reserve mock call capacity and enforce local limits. Several paid-path,
-resource-ledger, scoring, evidence, and concurrency corrections remain listed
-in `next_steps.md`.
+Every provider decision receives a bounded, versioned observation/action
+trajectory and an exact strict JSON action schema. The benchmark-only FastAPI
+application exposes no legacy, admin, or cross-trial surface. Exact-origin and
+per-trial path validation plus an in-process raw-socket policy restrict the
+scaffold to the active local trial. This Python-level barrier is not an
+operating-system sandbox; hosted execution additionally requires current
+external isolation evidence.
 
-Run the entire pre-paid rehearsal without a model credential:
+Calls and possible actions are reserved together before provider work. Sent but
+unreconciled attempts retain their full worst-case cost. Events preserve
+recursively redacted provider envelopes, explicit call-attempt states, complete
+pre-calibration ledgers, and version/digest bindings. Replay rejects file,
+schema, lifecycle, stream, protocol, scorer, fixture, or software drift. See
+the [`data dictionary`](docs/data-dictionary.md) for exact meanings.
+
+Run the unpaid checks without a model credential:
 
 ```bash
 uv sync --locked --extra dev
+uv run ai-abyss-benchmark check-drift
 uv run ai-abyss-benchmark mock-rehearsal
+uv run ai-abyss-benchmark fake-provider-rehearsal
 uv run pytest -q
 uv run ruff check src tests
 ```
 
-The rehearsal executes 18 deterministic apparatus pairs (36 trials) in both
-`AB` and `BA` order with fresh browser and provider state. Only the finite-graph
-versus recursive-graph comparison is designed to isolate recursive topology;
-the other pairs exercise code paths and are not all matched causal estimates. It
-writes ignored artifacts under
-`artifacts/benchmark/`: `manifest.json`, `events.jsonl`, `result.json`, evidence
-hashes, and a pair-level treatment-minus-control summary. A trace can be
-replayed without web or model execution:
+`mock-rehearsal` executes 18 deterministic apparatus pairs (36 trials) in both
+orders. These are code-path checks; they are not all causal comparisons.
+`fake-provider-rehearsal` executes the committed four-pair/eight-trial matched
+calibration matrix through the OpenRouter-compatible adapter and an ephemeral
+loopback TCP server. It audits adapter destinations, checks that request,
+receipt, and reconciliation counts agree, and replays every trial. Neither
+command loads a credential or permits a non-loopback provider destination.
+
+Ignored trial artifacts contain `manifest.json`, `events.jsonl`, `result.json`,
+evidence hashes, and pair-level treatment-minus-control summaries. A trace can
+be replayed without web or model execution:
 
 ```bash
 uv run ai-abyss-benchmark replay artifacts/benchmark/<pair>/<trial>
@@ -132,23 +143,40 @@ uv run ai-abyss-benchmark-server
 ```
 
 Checked-in benchmark configuration is loopback-only, `execution_mode: mock`,
-and `allow_paid: false`. Configuration resolution in code is: an explicit path,
-then `AI_ABYSS_CONFIG`, then ignored `config.local.yaml`, then checked-in
-`config.yaml`. The live provider adapter is covered only by mocked HTTP
-contract tests and is not integrated into the runner. The runner gives
-providers only the current observation. Recognition uses predeclared
-observable-rationale patterns, and the deterministic recognizer now waits for
-a repeated graph state; this remains plumbing evidence rather than real-model
-recognition evidence. No hosted run is authorised by this repository state;
-see `next_steps.md` for the implementation gates and paid-run cutoff.
+and `allow_paid: false`. Configuration resolution is: explicit path,
+`AI_ABYSS_CONFIG`, ignored `config.local.yaml`, then checked-in `config.yaml`.
+The hosted factory is integrated but fail-closed behind an exact, expiring,
+single-run authorization, clean commit, injected credential loader, current
+price and route identity, provider-side ceiling, and current external-isolation
+evidence. No such authorization is checked in or implied. Recognition remains
+a secondary observable-rationale measure and is not real-model-validated.
+
+The committed calibration protocol is
+[`protocol/calibration-v1.json`](protocol/calibration-v1.json). It defines
+finite-graph versus recursive-trap and byte-length-matched inert versus
+synthetic-injection contrasts. Both run once in `AB` and once in `BA` order,
+for four pairs and eight trials. The dynamic answer is derived per pair from
+its seed and opaque model namespace. This is apparatus calibration, not a model
+leaderboard or population estimate.
+
+No hosted run is authorized by this repository state. Completing all unpaid
+checks still requires a new explicit approval of the exact model, provider
+route, current price snapshot, limits, stopping rules, and artifact policy in
+the paid-pilot authorization packet.
 
 Benchmark results do not validate the legacy crawler classifier, data-poisoning
-claims, or production deployment claims below. See `issues.md` and
-`existing benchmark review.md` for the audit and research boundary.
+claims, or production deployment claims below. See [`issues.md`](issues.md),
+the [`experimental design`](docs/experimental-design.md), and the
+[`existing benchmark review`](<existing benchmark review.md>) for the audit and
+research boundary.
 
 ---
 
 ## How It Works
+
+> This section describes the inherited prototype's intended request flow. Its
+> classifier does not establish crawler identity or policy violation, and the
+> downstream effects have not been validated.
 
 ```
                     ┌─────────────────────┐
@@ -175,7 +203,10 @@ claims, or production deployment claims below. See `issues.md` and
                                       └──────────────┘
 ```
 
-Every request hits the classification engine first. Humans pass through. Compliant bots pass through with logging. Hostile bots — those that ignored your `robots.txt` and/or behave erratically — get routed into one or more kill chains, and everything is logged.
+The legacy application sends requests through a heuristic classifier and may
+route high-scoring requests to one or more kill-chain generators. Its labels
+are routing decisions, not verified human/bot identity or proof of policy
+violation.
 
 ---
 
@@ -283,21 +314,20 @@ SQLite database logging every request, session, injection attempt, and C2 callba
 
 ## Quickstart
 
+For the supported unpaid benchmark workflow:
+
 ```bash
 git clone https://github.com/terrorswift/ai-abyss.git
 cd ai-abyss
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-# Configure
-cp config.yaml config.local.yaml
-# Edit config.local.yaml: set your domain, C2 callback domain, admin API key
-
-# Run
-uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8080
+uv sync --locked --extra dev
+uv run ai-abyss-benchmark check-drift
+uv run ai-abyss-benchmark mock-rehearsal
+uv run ai-abyss-benchmark fake-provider-rehearsal
 ```
 
-Pro tip: by design, the tarpit will considerably slow down your other manual tests. If you just want to test L1 or L3, you can disable it in `config.yaml`.
+For manual benchmark-page inspection, `uv run ai-abyss-benchmark-server` binds
+only to the configured loopback address. The inherited app can be inspected
+locally, but public deployment is not supported by this repository state.
 
 ---
 
@@ -320,7 +350,10 @@ uv run pytest tests/test_tarpit.py::TestTarpitGenerator::test_infinite_depth
 uv run ruff check src tests
 ```
 
-Tests use an in-memory SQLite database and a separate [tests/config_test.yaml](tests/config_test.yaml) with reduced page sizes for speed. No network access or external services required.
+Tests use an in-memory SQLite database and a separate
+[`tests/config_test.yaml`](tests/config_test.yaml) with reduced page sizes for
+speed. The fake-provider qualification opens only an ephemeral loopback TCP
+socket; no external network or hosted service is required.
 
 ---
 
@@ -362,25 +395,15 @@ Each kill chain can be enabled/disabled independently. Run just the tarpit, just
 
 ## Deployment
 
-**Standalone (no reverse proxy needed):**
+There is no supported public deployment. The inherited app lacks the
+classifier validation, trusted-proxy boundary, authentication, privacy and
+retention model, rate limiting, self-DoS controls, and legal review required
+for one. `nginx/` is retained as historical prototype material, not a
+production recipe.
 
-```bash
-uvicorn src.main:app --host 0.0.0.0 --port 8443
-```
-
-All features work standalone. The only feature requiring a reverse proxy is JA3/TLS fingerprinting.
-
-**With nginx (optional, adds JA3/JA4 fingerprinting):**
-
-```bash
-# Build nginx with TLS fingerprint module (see nginx/ja3_install.sh)
-sudo cp nginx/nginx.conf /etc/nginx/sites-available/ai-abyss
-# Replace yourdomain.com with your actual domain in the nginx config
-# Uncomment ssl_ja3 directives and set: proxy_set_header X-JA3-Hash $ssl_ja3_hash;
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-The included [nginx/ja3_install.sh](nginx/ja3_install.sh) builds nginx 1.28.2 with [ngx_ssl_fingerprint_module](https://github.com/HanadaLee/ngx_ssl_fingerprint_module) for JA3 + JA4 + HTTP/2 fingerprinting. Without the module, leave the `ssl_ja3` lines commented out — everything else works.
+The benchmark server intentionally refuses non-loopback binding. A future
+hosted-model calibration would still keep the website and synthetic sink local;
+only the separately authorized provider transport could leave the machine.
 
 ---
 
@@ -390,6 +413,7 @@ The included [nginx/ja3_install.sh](nginx/ja3_install.sh) builds nginx 1.28.2 wi
 ai-abyss/
 ├── src/
 │   ├── main.py                ← FastAPI app, middleware, request pipeline
+│   ├── benchmark/             ← Isolated trials, conditions, runner, scoring, evidence
 │   ├── classifier/
 │   │   ├── engine.py          ← Signal fusion + scoring
 │   │   ├── fingerprint.py     ← JA3/JA4 TLS fingerprinting
@@ -435,7 +459,10 @@ ai-abyss/
 
 ## Metrics
 
-Measured against the live system:
+The inherited README reported the following generator/output figures. They are
+retained for historical context only: this branch has not reproduced them as a
+live deployment study, and values such as "defeats dedup" or training impact
+are unsupported causal claims.
 
 | Metric | Value |
 |--------|-------|
@@ -447,29 +474,31 @@ Measured against the live system:
 | Unique canary tokens per page | 25 |
 | Injection vectors per page | 12 |
 | Injection strategies per page | 13 |
-| Cross-topic Jaccard similarity | 0.34 (defeats dedup) |
+| Cross-topic Jaccard similarity | 0.34 (legacy claim) |
 | Within-topic Jaccard similarity | 0.78 |
 
-A single crawl injects into a training dataset:
-- **270,000+** corrupted factual claims
-- **156,000+** contradictory claims creating conflicting gradient signal
-- **35,000+** unique canary tokens (traceable if they surface in model outputs)
-- Gigabytes of text that passes quality filters but is systematically wrong
-- Unicode payloads that fragment tokenizer vocabularies
+These counts do not prove that a crawler fetched the material, that a training
+pipeline retained it, that a model learned it, or that any downstream model was
+degraded. Those would require separate controlled ingestion and training
+experiments.
 
 ---
 
 ## Legal & Ethical Position
 
-AI Abyss is purely defensive. It activates **only** against clients that have already violated the site's explicit no-crawl directives.
+The repository's defensive intent is not a legal conclusion. `robots.txt` does
+not itself prove crawler identity, prior access, authorization status, or legal
+liability, and the legacy classifier cannot guarantee that only a policy
+violator receives altered content. Public fabricated content, resource
+exhaustion, prompt injection, callbacks, and collection of network metadata can
+create legal, ethical, security, privacy, and collateral-impact risks.
 
-1. `robots.txt` and `ai.txt` publish machine-readable access policies
-2. Crawlers that ignore these are accessing content without authorisation
-3. Serving different content to unauthorised accessors is standard practice (paywalls, geo-blocking, bot management)
-4. C2 callbacks test whether agents follow injected instructions — the agent makes the request voluntarily based on content on **your** domain
-5. All data collected is from interactions with **your** server — no external probing
-
-The telemetry database is your evidence file.
+The benchmark avoids those public-system claims: it uses only synthetic tasks,
+fresh fake secrets, a bounded local sink, explicit trial assignment, and
+loopback pages. Its event log is experimental evidence within the declared
+apparatus, not proof of training ingestion, compromise, or unlawful access.
+Seek appropriate legal and institutional review before opening any public or
+real-user scope.
 
 ---
 

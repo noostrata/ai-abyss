@@ -31,20 +31,38 @@ jobs:
       - name: Run static checks
         run: uv run ruff check src tests
 
+      - name: Check contracts, protocol, matrix, and documentation drift
+        run: uv run ai-abyss-benchmark check-drift
+
       - name: Run complete test suite
         run: uv run pytest -q
 
+      - name: Recheck adversarial artifact handling explicitly
+        run: uv run pytest -q tests/benchmark/test_artifact_integrity.py
+
       - name: Run deterministic mock rehearsal
         run: uv run ai-abyss-benchmark mock-rehearsal > rehearsal-output.json
+
+      - name: Run provider-shaped loopback HTTP rehearsal
+        run: >-
+          uv run ai-abyss-benchmark fake-provider-rehearsal
+          > fake-provider-output.json
 
       - name: Replay every rehearsal trial
         shell: bash
         run: |
           mapfile -d '' results < <(find artifacts/benchmark -name result.json -print0)
-          test "${#results[@]}" -eq 36
+          expected="$(uv run python -c 'from src.benchmark.cli import calibration_specs, rehearsal_specs; print(2 * (len(rehearsal_specs()) + len(calibration_specs())))')"
+          test "${#results[@]}" -eq "$expected"
           for result in "${results[@]}"; do
             uv run ai-abyss-benchmark replay "$(dirname "$result")" >/dev/null
           done
+
+      - name: Verify documented command surface
+        run: |
+          uv run ai-abyss-benchmark --help >/dev/null
+          uv run ai-abyss-benchmark protocol-matrix >/dev/null
+          git diff --exit-code
 
       - name: Retain unpaid rehearsal summary
         uses: actions/upload-artifact@v4
@@ -52,6 +70,8 @@ jobs:
           name: unpaid-rehearsal-summary
           path: |
             rehearsal-output.json
+            fake-provider-output.json
             artifacts/benchmark/rehearsal_summary.json
+            artifacts/benchmark/unpaid/fake-provider/rehearsal_summary.json
           if-no-files-found: error
           retention-days: 14

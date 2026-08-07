@@ -23,7 +23,7 @@ Status vocabulary:
 | ID | Severity | Complexity | Gate | Status | Issue and present evidence |
 |---|---|:---:|---|---|---|
 | BEN-001 | Critical | M | 1 | mock-observed | Task success is derived from an exact active-origin, active-namespace source delivered before the answer and marked as containing the task answer; hostile and unvisited sources have negative tests. |
-| BEN-002 | Critical | L | 2 | mock-observed | The runner injects a predeclared local provider selection. Deterministic mock and local fake OpenRouter modes traverse the same lifecycle; hosted construction remains unavailable from the runner. |
+| BEN-002 | Critical | L | 2 | mock-observed | The runner injects a predeclared provider selection. Deterministic mock and local fake OpenRouter modes traverse the same lifecycle; hosted construction requires an exact, expiring authorization, clean commit, injected credential loader, matching price/route/budgets, and external-isolation evidence. |
 | BEN-003 | Critical | L | 2 | mock-observed | Every call receives a typed, bounded, versioned observation/action trajectory with an explicit truncation count. The deterministic policy is pure and retains no privileged behavioral state. |
 | BEN-004 | Critical | M | 2 | mock-observed | The OpenRouter-compatible request sends the exact strict action schema, one exact model and route, disables fallback, requires parameter support, and validates/records returned model, route, fingerprint, tier, and router metadata. |
 | BEN-005 | Critical | S–M | 3 | mock-observed | Call and action capacity are reserved atomically before provider construction begins; an exact action-boundary test proves that no extra provider attempt occurs. |
@@ -39,7 +39,7 @@ Status vocabulary:
 | BEN-015 | Medium | S–M | 4 | mock-observed | Callback bodies are streamed under the hard limit; loopback origins are parsed structurally; configured ports must match the bound server; partial response bytes survive stream interruption; generated, sent, and delivered bytes remain distinct. |
 | BEN-016 | High | L | 5 | mock-observed | Paired arms share an opaque model-facing namespace, exact serialized envelopes match before divergence, and the protocol uses finite-versus-recursive plus byte-length-matched inert-versus-injection contrasts in both orders. |
 | BEN-017 | High | L | 5 | mock-observed | The calibration task now derives a per-pair answer from seed and opaque namespace, includes legitimate decoy bulletins, and removes the direct first-link cue. One task remains apparatus-calibration scope, not benchmark breadth. |
-| BEN-018 | High | M | 0/6 | open | README, plan, issue, evidence, and agent-guidance claims overstate routing, outcome separation, network instrumentation, resource accounting, matched inputs, and scientific readiness. |
+| BEN-018 | High | M | 0/6 | implemented | README, historical plan, issue register, agent guidance, literature crosswalk, data dictionary, and authorization packet now distinguish implementation, tests, local observations, real-model evidence, and scientific support. `check-drift` verifies links, contract terms, matrix bytes, and evidence bindings in CI. |
 | LEG-001 | Critical for public deployment | XL | 10 | deferred | The inherited classifier, C2, admin, proxy trust, privacy/retention, fabricated-content indexing, rate limiting, telemetry, scaling, and legal claims remain outside benchmark mode and unresolved. |
 
 ## Current decision
@@ -112,7 +112,8 @@ Closed for the local benchmark:
   explicit observable rationale; escape and recovery do not depend on inferred
   hidden reasoning.
 - The environment is locked, the full legacy-plus-benchmark suite is retained,
-  Ruff is clean, and the mock matrix runs in both orders with no hosted call.
+  Ruff is clean, and both the broad mock matrix and matched loopback-HTTP matrix
+  run with no hosted call or credential load.
 
 Contained rather than repaired in the legacy product:
 
@@ -125,10 +126,11 @@ Contained rather than repaired in the legacy product:
 Still open at the paid gate:
 
 - There is deliberately no real-model efficacy evidence yet (issue 7). The
-  OpenRouter adapter has only mocked contract evidence. A separately approved
+  OpenRouter-compatible adapter has mocked error-contract evidence and local
+  TCP/HTTP rehearsal evidence, but no hosted evidence. A separately approved
   pilot must pin the model and provider, current prices, exact trial count,
   per-trial and batch ceilings, dedicated credential limit, and kill switch.
-- The mock matrix validates measurement behavior, not statistical power,
+- The local matrices validate measurement behavior, not statistical power,
   cross-model generality, naturalistic realism, or comparative scientific
   efficacy.
 

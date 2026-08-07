@@ -9,26 +9,28 @@ This repository contains two distinct systems:
    respond to recursive lures and synthetic prompt injection.
 
 Keep these systems separate. Benchmark trials are identified by stored trial
-state and `/benchmark/{trial_id}/...` routes. They must not be assigned a
+state and `/benchmark/{model_namespace}/...` routes. They must not be assigned a
 condition through crawler classification, IP address, user-agent, headers, or
 request parameters.
 
 The current authorised scope ends before any paid or hosted-model request.
 Do not open the live provider path, load a real credential, expose the server
-publicly, or run a paid pilot without a new explicit user instruction covering
-the exact pilot described in `plan.md`.
+publicly, or run a paid pilot without a new explicit user instruction approving
+the exact packet described in `next_steps.md`.
 
 ## Read first
 
 Read these files before changing the benchmark:
 
-1. `plan.md` — work packages, acceptance criteria, and the paid-run cutoff.
-2. `next_steps.md` — the live phased roadmap and current implementation gates.
-3. `issues.md` — ranked repository issues and deferred production concerns.
-4. `existing benchmark review.md` — related work and novelty boundaries.
-5. `README.md` — local commands and the boundary between benchmark and legacy
+1. `next_steps.md` — the live phased roadmap and current authorization cutoff.
+2. `issues.md` — ranked repository issues and deferred production concerns.
+3. `protocol/calibration-v1.json` — authoritative calibration matrix and limits.
+4. `docs/data-dictionary.md` — event, outcome, ledger, and censoring semantics.
+5. `plan.md` — historical implementation record and original acceptance gates.
+6. `existing benchmark review.md` — related work and novelty boundaries.
+7. `README.md` — local commands and the boundary between benchmark and legacy
    behavior.
-6. Relevant implementation and tests — documentation is not evidence that a
+8. Relevant implementation and tests — documentation is not evidence that a
    behavior is implemented or validated.
 
 ## Current benchmark map
@@ -37,8 +39,8 @@ Read these files before changing the benchmark:
   and canonical serialization.
 - `src/benchmark/tasks.py` and `fixtures/benchmark/task_001/`: synthetic exact-
   answer task and deterministic gold evaluator.
-- `src/benchmark/conditions.py`: control, finite graph control, recursive trap,
-  and visible synthetic injection rendering.
+- `src/benchmark/conditions.py`: plain, matched finite-graph, recursive,
+  byte-length-matched inert, and visible synthetic-injection rendering.
 - `src/benchmark/registry.py`, `storage.py`, and `api.py`: explicit trial state,
   transactionally sequenced SQLite evidence, and local routes.
 - `src/benchmark/event_sink.py`: signed, expiring, single-use synthetic event
@@ -49,8 +51,8 @@ Read these files before changing the benchmark:
 - `src/benchmark/budgets.py`: pre-action trial limits and atomic batch call-cost
   reservations.
 - `src/benchmark/providers/`: deterministic mock profiles, a strict
-  OpenRouter-compatible adapter, and a local fake server. The runner can use
-  the mock or fake server; it cannot yet select the hosted endpoint.
+  OpenRouter-compatible adapter, and an in-process or TCP fake server. Hosted
+  selection exists only behind an exact, unissued authorization object.
 - `src/benchmark/runner.py`, `scoring.py`, and `export.py`: counterbalanced pairs,
   deterministic outcomes, artifact export, and replay.
 - `tests/benchmark/`: focused safety, contract, containment, budget, provider,
@@ -64,7 +66,7 @@ Read these files before changing the benchmark:
 - The benchmark runner uses `create_benchmark_app`; it does not expose legacy,
   admin, classifier, or kill-chain routes.
 - The browser can reach only the declared loopback origin and the active
-  `/benchmark/{trial_id}/` path. Redirect targets are validated before a
+  `/benchmark/{model_namespace}/` path. Redirect targets are validated before a
   follow-up request; the runtime socket barrier independently denies undeclared
   DNS and socket destinations.
 - Mock trials use a fresh provider instance, browser state, and manifest.
@@ -114,6 +116,7 @@ Keep these categories distinct:
 - implemented;
 - covered by tests;
 - observed in the deterministic mock rehearsal;
+- observed through the local provider-shaped TCP/HTTP rehearsal;
 - observed with a real model;
 - supported by external scientific evidence.
 
@@ -137,15 +140,19 @@ Run verification from the repository root:
 ```bash
 uv lock --locked
 uv sync --locked --extra dev
+uv run ai-abyss-benchmark check-drift
 uv run pytest -q
 uv run ruff check src tests
 uv run ai-abyss-benchmark mock-rehearsal
+uv run ai-abyss-benchmark fake-provider-rehearsal
 ```
 
-The current rehearsal declaration is nine pair templates in both `AB` and `BA`
-order: 18 apparatus pairs and 36 fresh-state mock trials. These exercise paths;
-they are not all matched causal comparisons. Do not change the matrix
-implicitly—update the protocol, tests, and documentation together.
+The broad mock rehearsal exercises nine pair templates in both orders; these
+are path checks and not all matched causal comparisons. The authoritative
+calibration matrix is generated from `protocol/calibration-v1.json` and contains
+the two matched contrasts in both orders. Do not change either matrix
+implicitly—update its authority, generated artifact, tests, and documentation
+together.
 
 Replay a saved trial with:
 
@@ -161,10 +168,10 @@ still tested, and no hosted request or credential load occurred.
 
 Do not treat the local MVP as a production honeypot. Public crawler attribution,
 real-user data handling, database migrations, public indexing, long-term
-retention, production authentication, multi-model comparison, inert length,
-latency, volume controls, and combined recursion-plus-injection treatments
-remain separate future work. Revisit the ranked issues before enabling any of
-those scopes.
+retention, production authentication, multi-model comparison, latency and
+volume controls, combined recursion-plus-injection treatments, and publication
+infrastructure remain separate future work. Revisit the ranked issues before
+enabling any of those scopes.
 
 Do not claim the first LLM honeypot or agent-trap benchmark. The defensible
 research direction is narrower: jointly measuring attraction, recursive

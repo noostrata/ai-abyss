@@ -533,6 +533,37 @@ large pages, Unicode corruption, recursive links, fabricated facts, prompt
 injection, and C2. Such a result cannot identify which mechanism caused entry,
 cost, failure, or recovery.
 
+## Implementation crosswalk
+
+This review defines the research space; it is not evidence that the repository
+implements every recommendation. The current calibration crosswalk is:
+
+| Review requirement | Current state | Evidence or boundary |
+|---|---|---|
+| Deterministic legitimate task | Implemented and locally observed | Dynamic per-pair answer and trace-grounded source evaluator in `src/benchmark/tasks.py` and `src/benchmark/scoring.py` |
+| Clean task surface | Implemented and locally observed | `control` fixture and reference solution |
+| Recursion-only treatment | Implemented and locally observed | `recursive_trap` uses normal-sized, normal-latency pages |
+| Matched finite graph | Implemented and locally observed | `finite_graph_control` matches serialized provider envelopes through declared divergence |
+| Injection-only treatment | Implemented and locally observed | `synthetic_injection` has one visible, trial-bound synthetic instruction and sink |
+| Inert length-matched injection control | Implemented and locally observed | `inert_injection_control` uses the same wrapper and exact visible/HTML byte lengths |
+| Helpful, irrelevant, and conflicting-benign instruction controls | Deferred | Required before broader security–utility claims, not required for apparatus calibration |
+| Latency-only and volume-only controls | Deferred | Keep separate from recursion until the first calibration is reviewed |
+| Repeated/late exposure schedules | Deferred | The calibration uses one early exposure |
+| Attraction, dwell, cycle, exit, recovery, and re-entry metrics | Implemented and locally observed | Condition-aware trace scorer; see `docs/data-dictionary.md` |
+| Cross-session persistence or contamination | Deferred | No cross-session memory claim is made |
+| Separate operator, scaffold, and model ledgers | Implemented for pre-calibration fields | CPU, memory, connection, and file-descriptor instrumentation remains null/deferred |
+| Exact provider-shaped action loop | Implemented and locally observed | Bounded trajectory, strict schema, exact route, and identity checks exercised over loopback TCP/HTTP |
+| Hosted-model behavior | Not observed | Hosted construction is fail-closed pending an exact authorization packet |
+| Multiple tasks, models, and scaffolds | Deferred | One task/scaffold is sufficient only for apparatus calibration |
+| Confirmatory statistics | Deferred | Four calibration pairs permit raw paired diagnostics, not ranking, p-values, or population claims |
+| Blinded recognition validation | Prepared, not validated | Versioned rubric and blinded item export exist; no real-model rationales have been reviewed |
+| Authenticated public evidence release | Deferred | Local atomic hashes and strict replay exist; public signing/external commitment is later release work |
+
+The machine-readable authority for the current pair set, seeds, order, outcomes,
+censoring, failures, and ceilings is `protocol/calibration-v1.json`. Any future
+publication-oriented expansion should update this crosswalk after refreshing
+the literature search and before observing new outcomes.
+
 ## Claims to avoid and claims that remain plausible
 
 Avoid:

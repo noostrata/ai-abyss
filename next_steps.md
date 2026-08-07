@@ -18,10 +18,23 @@ The repository currently contains:
 - the inherited AI Abyss crawler-classification and kill-chain prototype; and
 - a separate local benchmark harness under `src/benchmark/`.
 
-The benchmark is a strong deterministic mock apparatus. It has typed trials and
-events, isolated benchmark routes, synthetic fixtures, local containment,
-budgets, scoring, artifact export, replay, and broad tests. It is not yet a
-runnable paid benchmark or scientific evidence about real-model behavior.
+The benchmark now has typed trials and events, isolated routes, dynamic
+synthetic fixtures, local containment, conservative budgets, condition-aware
+scoring, strict evidence/replay, a matched protocol, an exact gated hosted
+factory, and both deterministic and loopback-HTTP local rehearsals. It is not
+authorized or real-model-validated, and it is not scientific evidence about
+model susceptibility.
+
+| Phase | Current state |
+|---|---|
+| 0–1: authority and truthful outcomes | Implemented, test-covered, locally observed |
+| 2: provider-shaped agent loop | Implemented, test-covered, loopback-HTTP observed |
+| 3: fail-safe spending | Implemented and fault/boundary tested; not real-provider-validated |
+| 4: evidence and containment | Implemented and corruption/failure tested; public signing deferred |
+| 5: scientific calibration design | Implemented and locally rehearsed; no real-model outcomes |
+| 6: documentation and drift control | Implemented; enforced by `check-drift` and CI |
+| 7: unpaid qualification | Pending a clean commit-bound qualification report |
+| 8: paid calibration | Blocked pending a complete, explicitly approved packet |
 
 The implementation should proceed through explicit gates:
 
@@ -621,7 +634,7 @@ Afterward determine:
    real-model-observed, and production-ready claims.
 3. Keep `issues.md` as the live backlog and `plan.md` as the historical
    implementation record.
-4. Keep `existing-benchmark-review.md` literature-focused and add an
+4. Keep `existing benchmark review.md` literature-focused and add an
    implementation crosswalk against its recommended control matrix.
 5. Promote `agent.md` to `AGENTS.md`, or add a minimal discoverable redirect.
 6. Add a data dictionary for every event, metric, ledger field, termination

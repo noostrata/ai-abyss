@@ -1092,8 +1092,10 @@ def local_fake_provider_selection(
     *,
     scenario: FakeScenario = "valid",
     delay_seconds: float = 0.1,
+    endpoint: str | None = None,
+    request_audit: list[str] | None = None,
 ) -> RunnerProviderSelection:
-    """Build the live-shaped adapter against an isolated in-process local server."""
+    """Build the live-shaped adapter against an in-process or TCP fake server."""
 
     model_id = "fake/exact-model-v1"
     provider_route = "FakeLocal"
@@ -1107,14 +1109,33 @@ def local_fake_provider_selection(
         )
 
     def build(manifest: TrialManifest, profile: MockProfile) -> Provider:
-        fake_app = create_fake_openrouter_app(
-            profile,
-            model_id=model_id,
-            provider_route=provider_route,
-            scenario=scenario,
-            delay_seconds=delay_seconds,
-        )
-        endpoint = "http://127.0.0.1:8999/api/v1/chat/completions"
+        provider_endpoint = endpoint
+        if provider_endpoint is None:
+            fake_app = create_fake_openrouter_app(
+                profile,
+                model_id=model_id,
+                provider_route=provider_route,
+                scenario=scenario,
+                delay_seconds=delay_seconds,
+            )
+            provider_endpoint = (
+                "http://127.0.0.1:8999/api/v1/chat/completions"
+            )
+            client = httpx.AsyncClient(
+                transport=FakeOpenRouterTransport(fake_app, scenario)
+            )
+        else:
+
+            async def audit_request(request: httpx.Request) -> None:
+                if request_audit is not None:
+                    request_audit.append(
+                        f"{request.url.scheme}://{request.url.host}:{request.url.port}"
+                    )
+
+            client = httpx.AsyncClient(
+                timeout=httpx.Timeout(5.0),
+                event_hooks={"request": [audit_request]},
+            )
         return OpenRouterProvider(
             LiveProviderControls(
                 transport_mode="local_fake",
@@ -1123,10 +1144,8 @@ def local_fake_provider_selection(
                 max_output_tokens=512,
                 max_reasoning_tokens=512,
             ),
-            httpx.AsyncClient(
-                transport=FakeOpenRouterTransport(fake_app, scenario)
-            ),
-            endpoint=endpoint,
+            client,
+            endpoint=provider_endpoint,
         )
 
     return RunnerProviderSelection(identity_for=identity_for, build=build)
